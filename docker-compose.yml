@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: firasbesslah/firasbesslah-4twin1-kaddem
+    image: firasbessalah/firasbessalah-4twin1-kaddem
     container_name: firasbessalah-4twin1-kaddem
     build:
       context: .
