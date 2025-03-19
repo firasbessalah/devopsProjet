@@ -38,26 +38,16 @@ pipeline {
         }
 
         // Étape 6 : Authentification à Docker Hub
-        stage('Login to Docker Hub') {
+       stage('Login to DockerHub') {
             steps {
-                // Nettoyer les sessions Docker existantes
-                sh 'docker logout'
+                script {
+              withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
 
-                // Utiliser les credentials Docker Hub
-                withCredentials([usernamePassword(
-                    credentialsId: 'DOCKER_HUB_CREDENTIALS', // Doit correspondre à l'ID des credentials
-                    usernameVariable: 'DOCKER_USER',          // Variable pour le nom d'utilisateur
-                    passwordVariable: 'DOCKER_PASSWORD'       // Variable pour le token
-                )]) {
-                    // Authentification Docker
-                    sh '''
-                        echo "Tentative de connexion avec l'utilisateur: ${DOCKER_USER}"
-                        echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin
-                    '''
+                    }
                 }
             }
         }
-
         // Étape 7 : Pousser les images Docker vers Docker Hub
         stage('Push Docker Image') {
             steps {
