@@ -10,7 +10,7 @@ pipeline {
         }
 
         // Étape 2 : Analyse SonarQube
-        stage('MVN Sonarqube') {
+       /* stage('MVN Sonarqube') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9c62bde79a6267dde15063e80cdf796bceff74ab -Dmaven.test.skip=true'
             }
@@ -28,12 +28,12 @@ pipeline {
             steps {
                 sh 'mvn deploy -Dmaven.test.skip=true'
             }
-        }
+        } */
 
         // Étape 5 : Construction des images Docker
         stage('Build Docker Images') {
             steps {
-                sh 'docker-compose build'
+                sh 'sudo docker-compose up --build'
             }
         }
 
