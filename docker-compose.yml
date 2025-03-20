@@ -1,65 +1,33 @@
 version: '3.8'
 
 services:
-  # Spring Boot Application
   app:
     image: firasbessalah/firasbessalah-4twin1-kaddem
     container_name: firasbessalah-4twin1-kaddem
     build:
       context: .
-      dockerfile: Dockerfile  # Path to Dockerfile
+      dockerfile: Dockerfile  # Optionnel si le fichier s'appelle "Dockerfile"
     ports:
-      - "8089:8089"  # Expose port 8089
+      - "8089:8089"
     environment:
-      # ===== Server Configuration =====
+      # ===== Configuration Serveur =====
       SERVER_PORT: 8089
       SERVER_SERVLET_CONTEXT_PATH: /kaddem
 
-      # ===== H2 Database Configuration =====
+      # ===== Configuration H2 Obligatoire =====
       SPRING_DATASOURCE_URL: jdbc:h2:mem:kaddem
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
+
+      # ===== Authentification H2 (Optionnel) =====
       SPRING_DATASOURCE_USERNAME: firas
       SPRING_DATASOURCE_PASSWORD: "123"
 
-      # ===== H2 Console =====
+      # ===== Console H2 =====
       SPRING_H2_CONSOLE_ENABLED: "true"
       SPRING_H2_CONSOLE_PATH: /h2-console
-      SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS: "true"
+      SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS: "true"  # Accès depuis l'extérieur
 
-      # ===== JPA/Hibernate Configuration =====
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update  # Automatically update schema
-      SPRING_JPA_SHOW_SQL: "true"  # Show SQL queries in logs
-      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"  # Format SQL output
-    networks:
-      - monitoring
-
-  # Prometheus for monitoring
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Mount configuration file
-    ports:
-      - "9090:9090"  # Expose Prometheus UI
-    depends_on:
-      - app  # Start after the Spring Boot app
-    networks:
-      - monitoring
-
-  # Grafana for visualization
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    ports:
-      - "3000:3000"  # Expose Grafana UI
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # Set admin password
-    depends_on:
-      - prometheus  # Start after Prometheus
-    networks:
-      - monitoring
-
-# Define network for services
-networks:
-  monitoring:
-    driver: bridge
+      # ===== Configuration JPA/Hibernate =====
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update  # Auto-mise à jour du schéma
+      SPRING_JPA_SHOW_SQL: "true"            # Afficher les requêtes SQL (optionnel)
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"  # Formatage SQL (optionnel)
