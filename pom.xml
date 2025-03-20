@@ -75,7 +75,9 @@
 <dependency>
     <groupId>org.springframework.transaction</groupId>
     <artifactId>spring-tx</artifactId>
+    <version>5.3.18</version> <!-- Add a valid version here -->
 </dependency>
+
 
     </dependencies>
     <distributionManagement>
