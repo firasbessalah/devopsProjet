@@ -14,7 +14,7 @@ pipeline {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9c62bde79a6267dde15063e80cdf796bceff74ab -Dmaven.test.skip=true'
             }
-        }
+        } */
 
         // Étape 3 : Installation du projet
         stage('Install') {
@@ -24,7 +24,7 @@ pipeline {
         }
 
         // Étape 4 : Déploiement sur Nexus
-        stage('MVN Nexus') {
+    /*    stage('MVN Nexus') {
             steps {
                 sh 'mvn deploy -Dmaven.test.skip=true'
             }
