@@ -64,12 +64,16 @@
         </dependency>
 
     </dependencies>
-<distributionManagement>
-    <repository>
-        <id>deploymentRepo</id>
-        <url>http://localhost:8081/repository/maven-snapshots/</url>
-    </repository>
-</distributionManagement>>
+    <distributionManagement>
+        <repository>
+            <id>deploymentRepoProjet</id> <!-- Doit correspondre à l'ID dans settings.xml -->
+            <url>http://localhost:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>deploymentRepoProjet</id> <!-- Doit correspondre à l'ID dans settings.xml -->
+            <url>http://localhost:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <build>
         <plugins>
