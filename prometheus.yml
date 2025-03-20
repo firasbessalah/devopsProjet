@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 5s  # How often to scrape targets
+
+scrape_configs:
+  - job_name: 'spring-boot-app'
+    metrics_path: '/kaddem/actuator/prometheus'
+    static_configs:
+      - targets: ['app:8089']  # Use the service name in Docker
