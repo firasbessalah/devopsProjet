@@ -61,7 +61,18 @@ pipeline {
                 sh 'docker-compose up -d'
             }
         }
-
+stage('Test Prometheus Metrics') {
+    steps {
+        script {
+            // Checking if Prometheus is scraping metrics from the app
+            def prometheus_url = 'http://prometheus-server-ip:9090/api/v1/query'
+            def query = 'up{job="spring-boot-application"}'
+            def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
+            echo "Prometheus Response: ${response}"
+            // You can assert if the response contains expected data, such as 1 for 'up' status
+        }
+    }
+}
         // Étape 9 : Vérification du déploiement
         stage('Verify Deployment') {
             steps {
