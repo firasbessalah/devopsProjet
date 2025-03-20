@@ -65,7 +65,7 @@ stage('Test Prometheus Metrics') {
     steps {
         script {
             // Checking if Prometheus is scraping metrics from the app
-            def prometheus_url = 'http://prometheus-server-ip:9090/api/v1/query'
+            def prometheus_url = 'http://192.168.152.129:9090/api/v1/query'
             def query = 'up{job="spring-boot-application"}'
             def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
             echo "Prometheus Response: ${response}"
