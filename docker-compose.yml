@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: azizhamed-4twin1-kaddem
+    image: azizhamed/azizhamed-4twin1-kaddem
     container_name: azizhamed-4twin1-kaddem
     build:
       context: .
