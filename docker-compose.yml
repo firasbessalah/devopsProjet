@@ -3,7 +3,7 @@ version: '3.8'
 services:
   app:
     image: azizhamed/azizhamed-4twin1-kaddem
-    container_name: azizhamed-4twin1-kaddem
+    container_name: azizhamed/azizhamed-4twin1-kaddem
     build:
       context: .
       dockerfile: Dockerfile  # Optionnel si le fichier s'appelle "Dockerfile"
