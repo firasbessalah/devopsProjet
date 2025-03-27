@@ -73,11 +73,7 @@ stage('Test Prometheus Metrics') {
         }
     }
 }
-stage('Deploy Monitoring Stack') {
-    steps {
-        sh 'docker-compose up -d prometheus grafana'
-    }
-}
+
 
         // Étape 9 : Vérification du déploiement
         stage('Verify Deployment') {
