@@ -68,7 +68,7 @@ pipeline {
         // Étape 8 : Déploiement avec docker-compose
         stage('Deploy with Docker Compose') {
             steps {
-                sh 'docker-compose up -d'
+                sh 'docker compose up -d'
             }
         }
 
