@@ -2,6 +2,8 @@ version: '3.8'
 
 services:
   app:
+    networks:
+      - kaddem-net
     image: azizhamed/azizhamed-4twin1
     container_name: azizhamed-4twin1
     build:
