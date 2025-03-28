@@ -2,38 +2,44 @@ version: '3.8'
 
 services:
   app:
-    networks:
-      - kaddem-net
     image: azizhamed/azizhamed-4twin1
     container_name: azizhamed-4twin1
     build:
       context: .
-      dockerfile: Dockerfile  # Optionnel si le fichier s'appelle "Dockerfile"
-    ports:
-      - "8089:8089"
+      dockerfile: Dockerfile
+    network_mode: "host"  # Solution clé pour le problème de connexion
     environment:
-      # ===== Configuration Serveur =====
+      # Configuration Serveur
       SERVER_PORT: 8089
       SERVER_SERVLET_CONTEXT_PATH: /kaddem
+      SERVER_ADDRESS: 0.0.0.0  # Explicitement bind sur toutes les interfaces
 
-      # ===== Configuration H2 Obligatoire =====
+      # Configuration H2
       SPRING_DATASOURCE_URL: jdbc:h2:mem:kaddem
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
-
-      # ===== Authentification H2 (Optionnel) =====
       SPRING_DATASOURCE_USERNAME: aziz
       SPRING_DATASOURCE_PASSWORD: "123"
 
-      # ===== Console H2 =====
+      # Console H2
       SPRING_H2_CONSOLE_ENABLED: "true"
       SPRING_H2_CONSOLE_PATH: /h2-console
-      SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS: "true"  # Accès depuis l'extérieur
+      SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS: "true"
 
-      # ===== Configuration JPA/Hibernate =====
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update  # Auto-mise à jour du schéma
-      SPRING_JPA_SHOW_SQL: "true"            # Afficher les requêtes SQL (optionnel)
-      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"  # Formatage SQL (optionnel)
+      # Configuration JPA/Hibernate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
 
-networks:
-  kaddem-net:
-    driver: bridge
+      # Actuator Configuration
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "*"
+      MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: /actuator
+
+    # Plus besoin de ports: avec network_mode: host
+    # Plus besoin de networks: avec network_mode: host
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8089/kaddem/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
