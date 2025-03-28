@@ -31,3 +31,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update  # Auto-mise à jour du schéma
       SPRING_JPA_SHOW_SQL: "true"            # Afficher les requêtes SQL (optionnel)
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"  # Formatage SQL (optionnel)
+
+networks:
+  kaddem-net:
+    driver: bridge
