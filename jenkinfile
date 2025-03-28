@@ -53,7 +53,18 @@ pipeline {
                 '''
             }
         }
-
+        stage('Test Prometheus Metrics') {
+            steps {
+                script {
+                    // Checking if Prometheus is scraping metrics from the app
+                    def prometheus_url = 'http://${DOCKER_HOST_IP}:9090/api/v1/query'
+                    def query = 'up{job="spring-boot-application"}'
+                    def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
+                    echo "Prometheus Response: ${response}"
+                    // You can assert if the response contains expected data, such as 1 for 'up' status
+                }
+            }
+        }
         stage('Verify Deployment') {
             steps {
                 script {
