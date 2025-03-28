@@ -8,7 +8,20 @@ pipeline {
                 sh 'mvn clean compile'
             }
         }
-
+       stage('Run JUnit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'  // Collecte des rapports de tests
+                }
+                failure {
+                    echo "❌ Tests unitaires échoués ! Arrêt du pipeline."
+                    error("Tests unitaires échoués.")  // Arrête le pipeline si les tests échouent
+                }
+            }
+        }
         // Étape 2 : Analyse SonarQube
         stage('MVN Sonarqube') {
             steps {
