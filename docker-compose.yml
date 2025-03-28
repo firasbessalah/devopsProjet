@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     image: azizhamed/azizhamed-4twin1
@@ -7,12 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: "host"  # Solution clé pour le problème de connexion
+    network_mode: "host"
     environment:
       # Configuration Serveur
       SERVER_PORT: 8089
       SERVER_SERVLET_CONTEXT_PATH: /kaddem
-      SERVER_ADDRESS: 0.0.0.0  # Explicitement bind sur toutes les interfaces
+      SERVER_ADDRESS: 0.0.0.0
 
       # Configuration H2
       SPRING_DATASOURCE_URL: jdbc:h2:mem:kaddem
@@ -34,8 +32,7 @@ services:
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "*"
       MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: /actuator
 
-    # Plus besoin de ports: avec network_mode: host
-    # Plus besoin de networks: avec network_mode: host
+   
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8089/kaddem/actuator/health"]
@@ -46,16 +43,25 @@ services:
 
   prometheus:
     image: prom/prometheus
-    container_name: prometheus
+    container_name: kaddem-prometheus
+    restart: unless-stopped
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    depends_on:
+      - app
 
   grafana:
     image: grafana/grafana
-    container_name: grafana
+    container_name: kaddem-grafana
+    restart: unless-stopped
     ports:
       - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
+
+volumes:
+  grafana-storage:
