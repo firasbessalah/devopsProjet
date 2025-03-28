@@ -1,88 +1,101 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_HOST_IP = "192.168.246.131"
+    }
+
     stages {
-        // Étape 1 : Compilation du projet
         stage('Compile') {
             steps {
                 sh 'mvn clean compile'
             }
         }
 
-        // Étape 2 : Analyse SonarQube
-       /* stage('MVN Sonarqube') {
-            steps {
-                sh 'mvn sonar:sonar -Dsonar.login=squ_9c62bde79a6267dde15063e80cdf796bceff74ab -Dmaven.test.skip=true'
-            }
-        } */
-
-        // Étape 3 : Installation du projet
         stage('Install') {
             steps {
                 sh 'mvn clean install -Dmaven.test.skip=true'
             }
         }
 
-        // Étape 4 : Déploiement sur Nexus
-    /*    stage('MVN Nexus') {
-            steps {
-                sh 'mvn deploy -Dmaven.test.skip=true'
-            }
-        } */
-
-        // Étape 5 : Construction des images Docker
         stage('Build Docker Images') {
             steps {
-                sh 'docker compose build'
+                sh 'docker compose build --no-cache'
             }
         }
 
-        // Étape 6 : Authentification à Docker Hub
         stage('Login to Docker Hub') {
             steps {
-                // Nettoyer les sessions Docker existantes
                 sh 'docker logout'
-
-                // Utiliser les credentials Docker Hub
                 withCredentials([usernamePassword(
-                    credentialsId: 'DOCKER_HUB_CREDENTIALS', // Doit correspondre à l'ID des credentials
-                    usernameVariable: 'DOCKER_USER',          // Variable pour le nom d'utilisateur
-                    passwordVariable: 'DOCKER_PASSWORD'       // Variable pour le token
+                    credentialsId: 'DOCKER_HUB_CREDENTIALS',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
-                    // Authentification Docker
                     sh '''
-                        echo "Tentative de connexion avec l'utilisateur: ${DOCKER_USER}"
                         echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin
                     '''
                 }
             }
         }
 
-        // Étape 7 : Pousser les images Docker vers Docker Hub
         stage('Push Docker Image') {
             steps {
                 sh 'docker compose push'
             }
         }
 
-        // Étape 8 : Déploiement avec docker-compose
         stage('Deploy with Docker Compose') {
             steps {
-                sh 'docker compose up -d'
+                sh '''
+                    docker compose down || true
+                    docker compose up -d
+                '''
             }
         }
 
-        // Étape 9 : Vérification du déploiement
         stage('Verify Deployment') {
             steps {
                 script {
-                    // Réessayer jusqu'à 5 fois, avec une attente de 10 secondes entre chaque tentative
-                    retry(5) {
-                        sleep 10 // Attendre 10 secondes avant chaque tentative
-                        sh 'curl -I -v http://192.168.246.131:8089/kaddem'
+                    waitUntil {
+                        try {
+                            def status = sh(
+                                script: "curl -s -o /dev/null -w '%{http_code}' http://${DOCKER_HOST_IP}:8089/kaddem/actuator/health",
+                                returnStdout: true
+                            ).trim()
+                            return (status == "200")
+                        } catch (Exception e) {
+                            sleep(10)
+                            return false
+                        }
                     }
+                    echo "Application is up and running!"
+                    
+                    // Test final
+                    sh """
+                        echo "Testing endpoint..."
+                        curl -v http://${DOCKER_HOST_IP}:8089/kaddem
+                        curl -v http://${DOCKER_HOST_IP}:8089/kaddem/actuator/health
+                        curl -v http://${DOCKER_HOST_IP}:8089/h2-console
+                    """
                 }
             }
-        }  
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout'
+        }
+        failure {
+            slackSend channel: '#builds',
+                     color: 'danger',
+                     message: "Build Failed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+        }
+        success {
+            slackSend channel: '#builds',
+                     color: 'good',
+                     message: "Build Success: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+        }
     }
 }
