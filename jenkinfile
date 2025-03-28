@@ -83,19 +83,4 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            sh 'docker logout'
-        }
-        failure {
-            slackSend channel: '#builds',
-                     color: 'danger',
-                     message: "Build Failed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
-        }
-        success {
-            slackSend channel: '#builds',
-                     color: 'good',
-                     message: "Build Success: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
-        }
-    }
 }
