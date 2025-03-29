@@ -1,102 +1,104 @@
 pipeline {
-    agent any
+    agent none // Start with no global agent
 
     stages {
-        // Étape 1 : Compilation du projet
-        stage('Compile') {
+        // Stages that run on Linux (built-in node)
+        stage('Compile & Test') {
+            agent {
+                label 'built-in-node' // Runs on your Linux master
+            }
             steps {
                 sh 'mvn clean compile'
-            }
-        }
-       stage('Run JUnit Tests') {
-            steps {
                 sh 'mvn test'
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'  // Collecte des rapports de tests
+                    junit '**/target/surefire-reports/*.xml'
                 }
                 failure {
                     echo "❌ Tests unitaires échoués ! Arrêt du pipeline."
-                    error("Tests unitaires échoués.")  // Arrête le pipeline si les tests échouent
+                    error("Tests unitaires échoués.")
                 }
             }
         }
-        // Étape 2 : Analyse SonarQube
-        stage('MVN Sonarqube') {
+
+        stage('SonarQube Analysis') {
+            agent {
+                label 'built-in-node'
+            }
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9cf9850fd06e499c5d1600a4aba4595c5c767100 -Dmaven.test.skip=true'
             }
         }
 
-        // Étape 3 : Installation du projet
-        stage('Install') {
-            steps {
-                sh 'mvn clean install -Dmaven.test.skip=true'
+        // Stages that run on Windows (esprit agent)
+        stage('Build & Deploy') {
+            agent {
+                label 'esprit' // Runs on your Windows agent
             }
-        }
+            stages {
+                stage('Install') {
+                    steps {
+                        bat 'mvn clean install -Dmaven.test.skip=true' // Use bat for Windows
+                    }
+                }
 
-        // Étape 4 : Déploiement sur Nexus
-        stage('MVN Nexus') {
-            steps {
-                sh 'mvn deploy -Dmaven.test.skip=true'
-            }
-        }
+                stage('Nexus Deploy') {
+                    steps {
+                        bat 'mvn deploy -Dmaven.test.skip=true'
+                    }
+                }
 
-        // Étape 5 : Construction des images Docker
-        stage('Build Docker Images') {
-            steps {
-                sh 'docker-compose build'
-            }
-        }
+                stage('Docker Operations') {
+                    steps {
+                        script {
+                            stage('Build Images') {
+                                bat 'docker-compose build'
+                            }
+                            
+                            stage('Login to DockerHub') {
+                                withCredentials([usernamePassword(
+                                    credentialsId: 'docker-hub-credentials', 
+                                    usernameVariable: 'DOCKER_USERNAME', 
+                                    passwordVariable: 'DOCKER_PASSWORD'
+                                )]) {
+                                    bat 'echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin'
+                                }
+                            }
+                            
+                            stage('Push Images') {
+                                bat 'docker-compose push'
+                            }
+                            
+                            stage('Deploy') {
+                                bat 'docker-compose up -d'
+                            }
+                        }
+                    }
+                }
 
-        // Étape 6 : Authentification à Docker Hub
-       stage('Login to DockerHub') {
-            steps {
-                script {
-              withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
-
+                stage('Verify Deployment') {
+                    steps {
+                        script {
+                            retry(5) {
+                                sleep 10
+                                bat 'curl -I http://192.168.152.129:8089/kaddem'
+                            }
+                        }
                     }
                 }
             }
         }
-        // Étape 7 : Pousser les images Docker vers Docker Hub
-        stage('Push Docker Image') {
-            steps {
-                sh 'docker-compose push'
-            }
-        }
 
-        // Étape 8 : Déploiement avec docker-compose
-        stage('Deploy with Docker Compose') {
-            steps {
-                sh 'docker-compose up -d'
-            }
-        }
-stage('Test Prometheus Metrics') {
-    steps {
-        script {
-            // Checking if Prometheus is scraping metrics from the app
-            def prometheus_url = 'http://192.168.152.129:9090/api/v1/query'
-            def query = 'up{job="spring-boot-application"}'
-            def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
-            echo "Prometheus Response: ${response}"
-            // You can assert if the response contains expected data, such as 1 for 'up' status
-        }
-    }
-}
-
-
-        // Étape 9 : Vérification du déploiement
-        stage('Verify Deployment') {
+        // This can run on either agent
+        stage('Test Prometheus Metrics') {
+            agent any
             steps {
                 script {
-                    // Réessayer jusqu'à 5 fois, avec une attente de 10 secondes entre chaque tentative
-                    retry(5) {
-                        sleep 10 // Attendre 10 secondes avant chaque tentative
-                        sh 'curl -I http://192.168.152.129:8089/kaddem'
-                    }
+                    def prometheus_url = 'http://192.168.152.129:9090/api/v1/query'
+                    def query = 'up{job="spring-boot-application"}'
+                    def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
+                    echo "Prometheus Response: ${response}"
                 }
             }
         }
