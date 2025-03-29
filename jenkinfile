@@ -34,7 +34,6 @@ pipeline {
         stage('Build & Deploy') {
             agent {
                 label 'esprit' // Your Windows agent label
-
             }
             stages {
                 stage('Install') {
