@@ -2,10 +2,10 @@ pipeline {
     agent none // Start with no global agent
 
     stages {
-        // Stages that run on Linux (built-in node)
+        // Stages that run on Linux controller (built-in node)
         stage('Compile & Test') {
             agent {
-                label 'built-in-node' // Runs on your Linux master
+                label 'master' // Most Jenkins setups use 'master' as the built-in node label
             }
             steps {
                 sh 'mvn clean compile'
@@ -16,15 +16,14 @@ pipeline {
                     junit '**/target/surefire-reports/*.xml'
                 }
                 failure {
-                    echo "❌ Tests unitaires échoués ! Arrêt du pipeline."
-                    error("Tests unitaires échoués.")
+                    error("❌ Unit tests failed! Pipeline stopped.")
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             agent {
-                label 'built-in-node'
+                label 'master'
             }
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9cf9850fd06e499c5d1600a4aba4595c5c767100 -Dmaven.test.skip=true'
@@ -34,12 +33,12 @@ pipeline {
         // Stages that run on Windows (esprit agent)
         stage('Build & Deploy') {
             agent {
-                label 'esprit' // Runs on your Windows agent
+                label 'esprit' // Your Windows agent label
             }
             stages {
                 stage('Install') {
                     steps {
-                        bat 'mvn clean install -Dmaven.test.skip=true' // Use bat for Windows
+                        bat 'mvn clean install -Dmaven.test.skip=true'
                     }
                 }
 
@@ -76,21 +75,26 @@ pipeline {
                         }
                     }
                 }
+            }
+        }
 
-                stage('Verify Deployment') {
-                    steps {
-                        script {
-                            retry(5) {
-                                sleep 10
-                                bat 'curl -I http://192.168.152.129:8089/kaddem'
-                            }
+        // Verification stages can run on any available node
+        stage('Verify Deployment') {
+            agent any
+            steps {
+                retry(5) {
+                    sleep 10
+                    script {
+                        if (isUnix()) {
+                            sh 'curl -I http://192.168.152.129:8089/kaddem'
+                        } else {
+                            bat 'curl -I http://192.168.152.129:8089/kaddem'
                         }
                     }
                 }
             }
         }
 
-        // This can run on either agent
         stage('Test Prometheus Metrics') {
             agent any
             steps {
