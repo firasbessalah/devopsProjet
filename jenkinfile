@@ -34,7 +34,7 @@ pipeline {
         stage('Build & Deploy') {
             agent {
                 label 'esprit' // Your Windows agent label
-  customWorkspace 'C:\\ag\\workspace\\${JOB_NAME}'
+
             }
             stages {
                 stage('Install') {
