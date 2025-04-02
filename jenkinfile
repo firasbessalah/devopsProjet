@@ -1,108 +1,103 @@
 pipeline {
-    agent none // Start with no global agent
+    agent any
 
     stages {
-        // Stages that run on Linux controller (built-in node)
-        stage('Compile & Test') {
-            agent {
-                label 'master' // Most Jenkins setups use 'master' as the built-in node label
-            }
+        // Étape 1 : Compilation du projet
+        stage('Compile') {
             steps {
                 sh 'mvn clean compile'
+            }
+        }
+
+        // ✅ Étape 2 : Exécution des tests unitaires JUnit
+        stage('Run JUnit Tests') {
+            steps {
                 sh 'mvn test'
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/*.xml'  // Collecte des rapports de tests
                 }
                 failure {
-                    error("❌ Unit tests failed! Pipeline stopped.")
+                    echo "❌ Tests unitaires échoués ! Arrêt du pipeline."
+                    error("Tests unitaires échoués.")  // Arrête le pipeline si les tests échouent
                 }
             }
         }
 
-        stage('SonarQube Analysis') {
-            agent {
-                label 'master'
-            }
+        // Étape 3 : Analyse SonarQube
+        stage('MVN Sonarqube') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9cf9850fd06e499c5d1600a4aba4595c5c767100 -Dmaven.test.skip=true'
             }
         }
 
-        // Stages that run on Windows (esprit agent)
-        stage('Build & Deploy') {
-            agent {
-                label 'esprit' // Your Windows agent label
-            }
-            stages {
-                stage('Install') {
-                    steps {
-                        bat 'mvn clean install -Dmaven.test.skip=true'
-                    }
-                }
-
-                stage('Nexus Deploy') {
-                    steps {
-                        bat 'mvn deploy -Dmaven.test.skip=true'
-                    }
-                }
-
-                stage('Docker Operations') {
-                    steps {
-                        script {
-                            stage('Build Images') {
-                                bat 'docker-compose build'
-                            }
-                            
-                            stage('Login to DockerHub') {
-                                withCredentials([usernamePassword(
-                                    credentialsId: 'docker-hub-credentials', 
-                                    usernameVariable: 'DOCKER_USERNAME', 
-                                    passwordVariable: 'DOCKER_PASSWORD'
-                                )]) {
-                                    bat 'echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin'
-                                }
-                            }
-                            
-                            stage('Push Images') {
-                                bat 'docker-compose push'
-                            }
-                            
-                            stage('Deploy') {
-                                bat 'docker-compose up -d'
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Verification stages can run on any available node
-        stage('Verify Deployment') {
-            agent any
+        // Étape 4 : Installation du projet
+        stage('Install') {
             steps {
-                retry(5) {
-                    sleep 10
-                    script {
-                        if (isUnix()) {
-                            sh 'curl -I http://192.168.152.129:8089/kaddem'
-                        } else {
-                            bat 'curl -I http://192.168.152.129:8089/kaddem'
-                        }
+                sh 'mvn clean install -Dmaven.test.skip=true'
+            }
+        }
+
+        // Étape 5 : Déploiement sur Nexus
+        stage('MVN Nexus') {
+            steps {
+                sh 'mvn deploy -Dmaven.test.skip=true'
+            }
+        }
+
+        // Étape 6 : Construction des images Docker
+        stage('Build Docker Images') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+
+        // Étape 7 : Authentification à Docker Hub
+        stage('Login to DockerHub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
                     }
                 }
             }
         }
 
+        // Étape 8 : Pousser les images Docker vers Docker Hub
+        stage('Push Docker Image') {
+            steps {
+                sh 'docker-compose push'
+            }
+        }
+
+        // Étape 9 : Déploiement avec Docker Compose
+        stage('Deploy with Docker Compose') {
+            steps {
+                sh 'docker-compose up -d'
+            }
+        }
+
+        // Étape 10 : Vérification des métriques Prometheus
         stage('Test Prometheus Metrics') {
-            agent any
             steps {
                 script {
                     def prometheus_url = 'http://192.168.152.129:9090/api/v1/query'
                     def query = 'up{job="spring-boot-application"}'
                     def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
                     echo "Prometheus Response: ${response}"
+                }
+            }
+        }
+
+        // Étape 11 : Vérification du déploiement
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    retry(5) {
+                        sleep 10
+                        sh 'curl -I http://192.168.152.129:8089/kaddem'
+                    }
                 }
             }
         }
