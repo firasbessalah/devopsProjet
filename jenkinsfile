@@ -1,93 +1,41 @@
 pipeline {
     agent any
-
-    environment {
-        // Configuration Docker
-        DOCKER_REGISTRY = 'docker.io'
-        DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
-        DOCKER_TAG = "${env.BUILD_NUMBER}"
-
-        // Configuration Nexus
-        NEXUS_URL = 'http://nexus:8081'
-        NEXUS_REPO = 'maven-releases'
-
-        // Configuration Java
-        JAVA_OPTS = '-Xms256m -Xmx512m'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Build') {
             steps {
-                checkout scm
+                sh 'mvn clean compile'
             }
         }
-
-        stage('Build & Test') {
+        stage('Test') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn test -Dspring.profiles.active=test'
             }
         }
-
-        stage('SonarQube Analysis') {
+        stage('Sonar Analysis') {
             steps {
-                withSonarQubeEnv('sonar-server') {
+                withSonarQubeEnv('sq1') {
                     sh 'mvn sonar:sonar'
                 }
             }
         }
-
-        stage('Push to Nexus') {
+        stage('Nexus') {
             steps {
                 sh 'mvn deploy -DskipTests'
             }
         }
+stage('Docker Build') {
+    steps {
+        script {
+            def imageName = "kaddem-app"
+            def imageTag = "latest"
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                }
-            }
-        }
+            // Ensure Dockerfile uses eclipse-temurin:11-jdk-alpine
+            sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
 
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-hub-creds') {
-                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
-                    }
-                }
-            }
-        }
-
-        stage('Deploy to Dev') {
-            steps {
-                sshagent(['dev-server-creds']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no user@dev-server \
-                        "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} && \
-                         docker run -d -p 8082:8082 --name kaddem ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    """
-                }
-            }
+            // Build with host networking
+            sh "docker build --network=host -t ${imageName}:${imageTag} ."
         }
     }
-
-    post {
-        always {
-            cleanWs()
-        }
-        success {
-            slackSend(
-                channel: '#devops',
-                message: "SUCCESS: Build ${env.BUILD_NUMBER} - ${env.BUILD_URL}"
-            )
-        }
-        failure {
-            slackSend(
-                channel: '#devops',
-                message: "FAILED: Build ${env.BUILD_NUMBER} - ${env.BUILD_URL}"
-            )
-        }
+}
     }
 }
