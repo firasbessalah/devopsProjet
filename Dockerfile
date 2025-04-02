@@ -1,4 +1,4 @@
-FROM openjdk:11-jdk-alpine
+FROM eclipse-temurin:11-jdk-alpine
 
 # Exposer le port de l'application
 EXPOSE 8082
