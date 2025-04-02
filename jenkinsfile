@@ -1,90 +1,93 @@
 pipeline {
     agent any
-     environment {
-            // Configuration des variables d'environnement
-            DOCKER_REGISTRY = 'docker.io'
-            DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
-            DOCKER_TAG = "${env.BUILD_NUMBER}"
-            NEXUS_URL = 'http://nexus.yourcompany.com:8081'
-        }
+
+    environment {
+        // Configuration Docker
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+
+        // Configuration Nexus
+        NEXUS_URL = 'http://nexus:8081'
+        NEXUS_REPO = 'maven-releases'
+
+        // Configuration Java
+        JAVA_OPTS = '-Xms256m -Xmx512m'
+    }
+
     stages {
-           // Étape 1: Build
-           stage('Build') {
-               steps {
-                   sh 'mvn clean compile'
-               }
-           }
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
 
-           // Étape 2: Tests
-           stage('Test') {
-               steps {
-                   sh 'mvn test -Dspring.profiles.active=test'
-               }
-           }
+        stage('Build & Test') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
 
-           // Étape 3: Analyse SonarQube
-           stage('Sonar Analysis') {
-               steps {
-                   withSonarQubeEnv('sq1') {
-                       sh 'mvn sonar:sonar'
-                   }
-               }
-           }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar-server') {
+                    sh 'mvn sonar:sonar'
+                }
+            }
+        }
 
-           // Étape 4: Déploiement Nexus
-           stage('Nexus') {
-               steps {
-                   sh 'mvn deploy -DskipTests'
-               }
-           }
+        stage('Push to Nexus') {
+            steps {
+                sh 'mvn deploy -DskipTests'
+            }
+        }
 
-           // Étape 5: Construction Docker
-           stage('Docker Build') {
-               steps {
-                   script {
-                       // Modification du Dockerfile si nécessaire
-                       sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
+            }
+        }
 
-                       // Construction de l'image avec host networking
-                       sh "docker build --network=host -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
-                   }
-               }
-           }
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-hub-creds') {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                    }
+                }
+            }
+        }
 
-           // Étape 6: Push Docker
-           stage('Docker Push') {
-               steps {
-                   script {
-                       // Utilisation des credentials Jenkins pour Docker Hub
-                       withCredentials([usernamePassword(
-                           credentialsId: 'docker-hub-creds',
-                           usernameVariable: 'DOCKER_USER',
-                           passwordVariable: 'DOCKER_PWD'
-                       )]) {
-                           sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PWD}"
-                           sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                       }
-                   }
-               }
-           }
-       }
+        stage('Deploy to Dev') {
+            steps {
+                sshagent(['dev-server-creds']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no user@dev-server \
+                        "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} && \
+                         docker run -d -p 8082:8082 --name kaddem ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    """
+                }
+            }
+        }
+    }
 
-       post {
-           always {
-               // Nettoyage des images Docker locales
-               sh 'docker system prune -f'
-           }
-           success {
-               // Notification de succès
-               slackSend channel: '#devops',
-                        color: 'good',
-                        message: "Build réussi: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
-           }
-           failure {
-               // Notification d'échec
-               slackSend channel: '#devops',
-                        color: 'danger',
-                        message: "Échec du build: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
-           }
-       }
-   }
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            slackSend(
+                channel: '#devops',
+                message: "SUCCESS: Build ${env.BUILD_NUMBER} - ${env.BUILD_URL}"
+            )
+        }
+        failure {
+            slackSend(
+                channel: '#devops',
+                message: "FAILED: Build ${env.BUILD_NUMBER} - ${env.BUILD_URL}"
+            )
+        }
+    }
+}
