@@ -23,5 +23,16 @@ pipeline {
                 sh 'mvn deploy -DskipTests'
             }
         }
+           stage('Docker Build') {
+                    steps {
+                        script {
+                            def imageName = "kaddem-app"
+                            def imageTag = "latest"
+
+                            // Construire l'image Docker
+                            sh "docker build -t ${imageName}:${imageTag} ."
+                        }
+                    }
+                }
     }
 }

@@ -1,5 +1,13 @@
 FROM openjdk:8-jdk-alpine
+
+# Exposer le port de l'application
 EXPOSE 8082
-ADD target/timesheet-devops-1.0.jar timesheet-devops-1.0.jar
-ENTRYPOINT ["java",
-"-jar","/timesheet-devops-1.0.jar"]
+
+# Définir l'URL du JAR sur Nexus
+ENV NEXUS_URL="http://localhost:8081/repository/maven-releases/tn/esprit/spring/kaddem/0.0.1/kaddem-0.0.1.jar"
+
+# Télécharger le fichier JAR depuis Nexus
+RUN wget -O /kaddem-0.0.1.jar "$NEXUS_URL"
+
+# Lancer l'application
+ENTRYPOINT ["java", "-jar", "/kaddem-0.0.1.jar"]
