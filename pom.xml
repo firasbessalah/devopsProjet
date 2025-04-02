@@ -10,7 +10,7 @@
     </parent>
     <groupId>tn.esprit.spring</groupId>
     <artifactId>kaddem</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>kaddem</name>
     <description>kaddem</description>
     <properties>
@@ -75,9 +75,9 @@
         </plugins>
     </build>
     <distributionManagement>
-        <snapshotRepository>
+        <repository>
             <id>deploymentRepo</id>
-            <url>http://localhost:8081/repository/maven-snapshots/</url>
-        </snapshotRepository>
+            <url>http://localhost:8081/repository/maven-releases/</url>
+        </repository>
     </distributionManagement>
 </project>
