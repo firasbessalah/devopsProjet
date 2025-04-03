@@ -21,7 +21,7 @@ services:
       retries: 3
 
   app-timesheet:
-    image: mouradhassini/timesheet-devops:1.0.0
+    image: sfaxioussama/kaddem-app:1.0.0
     container_name: timesheet-app
     depends_on:
       mysqldb:
