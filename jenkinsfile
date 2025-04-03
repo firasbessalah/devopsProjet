@@ -20,22 +20,38 @@ pipeline {
         }
         stage('Nexus') {
             steps {
-                sh 'mvn deploy -DskipTests'
+                sh 'mvn clean deploy -Dmaven.test.skip=true'
             }
         }
-stage('Docker Build') {
-    steps {
-        script {
-            def imageName = "kaddem-app"
-            def imageTag = "latest"
+        stage('Docker Build') {
+                  steps {
+                      script {
+                          // Verify JAR file exists
+                          sh 'ls -la target/*.jar'
 
-            // Ensure Dockerfile uses eclipse-temurin:11-jdk-alpine
-            sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
+                          // Update Dockerfile base image
+                          sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
 
-            // Build with host networking
-            sh "docker build --network=host -t ${imageName}:${imageTag} ."
-        }
-    }
-}
+                          // Build Docker image
+                          sh 'docker build --network=host -t kaddem-app:latest .'
+
+                          // Tag the image for DockerHub
+                          sh 'docker tag kaddem-app:latest oussamasfaxi/kaddem-app:1.0.0'
+                      }
+                  }
+              }
+              stage('Push to DockerHub') {
+                  steps {
+                      script {
+                          // Use Jenkins credentials to login to DockerHub
+                          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                         usernameVariable: 'DOCKER_HUB_USER',
+                                                         passwordVariable: 'DOCKER_HUB_PWD')]) {
+                              sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
+                              sh 'docker push oussamasfaxi/kaddem-app:1.0.0'
+                          }
+                      }
+                  }
+              }
     }
 }
