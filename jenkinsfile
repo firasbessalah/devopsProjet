@@ -36,7 +36,7 @@ pipeline {
                           sh 'docker build --network=host -t kaddem-app:latest .'
 
                           // Tag the image for DockerHub
-                          sh 'docker tag kaddem-app:latest oussamasfaxi/kaddem-app:1.0.0'
+                          sh 'docker tag kaddem-app:latest sfaxioussama/kaddem-app:1.0.0'
                       }
                   }
               }
@@ -48,7 +48,7 @@ pipeline {
                                                          usernameVariable: 'DOCKER_HUB_USER',
                                                          passwordVariable: 'DOCKER_HUB_PWD')]) {
                               sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
-                              sh 'docker push oussamasfaxi/kaddem-app:1.0.0'
+                              sh 'docker push sfaxioussama/kaddem-app:1.0.0'
                           }
                       }
                   }
