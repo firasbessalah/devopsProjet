@@ -19,9 +19,9 @@ pipeline {
             }
         }
         stage('Nexus') {
-                   steps {
-                            sh 'mvn deploy -DskipTests'
-                        }
+            steps {
+                sh 'mvn deploy -DskipTests'
+            }
         }
         stage('Docker Build') {
                   steps {
