@@ -6,7 +6,7 @@ services:
     container_name: timesheet-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ""  # À remplacer par votre mot de passe
+      MYSQL_ROOT_PASSWORD:   # À remplacer par votre mot de passe
       MYSQL_DATABASE: timesheet_db
     ports:
       - "3306:3306"
