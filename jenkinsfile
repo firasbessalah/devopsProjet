@@ -1,5 +1,9 @@
 pipeline {
     agent any
+     environment {
+            DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
+            DOCKER_TAG = '1.0.0'
+        }
     stages {
         stage('Build') {
             steps {
@@ -53,65 +57,55 @@ pipeline {
                       }
                   }
               }
-   stage('Deploy') {
-             steps {
-                 script {
-                     // Solution robuste sans docker-compose
-                     sh '''
-                         # Arrêt des conteneurs existants
-                         docker stop timesheet-app timesheet-mysql || true
-                         docker rm timesheet-app timesheet-mysql || true
+    stage('Deploy') {
+               steps {
+                   script {
+                       sh '''
+                           docker stop timesheet-app timesheet-mysql || true
+                           docker rm timesheet-app timesheet-mysql || true
+                           docker network create timesheet-net || true
 
-                         # Création du réseau si inexistant
-                         docker network create timesheet-net || true
+                           docker run -d --name timesheet-mysql \\
+                               --network timesheet-net \\
+                               -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \\
+                               -e MYSQL_DATABASE=timesheet_db \\
+                               -p 3306:3306 \\
+                               -v mysql_data:/var/lib/mysql \\
+                               --health-cmd="mysqladmin ping" \\
+                               --health-interval=10s \\
+                               --health-timeout=5s \\
+                               --health-retries=3 \\
+                               mysql:5.7
 
-                         # Démarrage MySQL avec attente explicite
-                         docker run -d --name timesheet-mysql \\
-                             --network timesheet-net \\
-                             -e MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD} \\
-                             -e MYSQL_DATABASE=timesheet_db \\
-                             -p 3306:3306 \\
-                             -v mysql_data:/var/lib/mysql \\
-                             --health-cmd="mysqladmin ping -uroot -p${MYSQL_ROOT_PASSWORD}" \\
-                             --health-interval=10s \\
-                             --health-timeout=5s \\
-                             --health-retries=3 \\
-                             mysql:5.7
+                           timeout 180s bash -c 'while [[ $(docker inspect -f "{{.State.Health.Status}}" timesheet-mysql) != "healthy" ]]; do sleep 5; done'
 
-                         # Attente que MySQL soit healthy
-                         timeout 180s bash -c 'while [[ $(docker inspect -f "{{.State.Health.Status}}" timesheet-mysql) != "healthy" ]]; do sleep 5; done'
+                           docker run -d --name timesheet-app \\
+                               --network timesheet-net \\
+                               -p 8082:8082 \\
+                               -e SPRING_DATASOURCE_URL=jdbc:mysql://timesheet-mysql:3306/timesheet_db \\
+                               -e SPRING_DATASOURCE_USERNAME=root \\
+                               ${DOCKER_IMAGE}:${DOCKER_TAG}
+                       '''
+                   }
+               }
+           }
+       }
 
-                         # Démarrage de l'application
-                         docker run -d --name timesheet-app \\
-                             --network timesheet-net \\
-                             -p 8082:8082 \\
-                             -e SPRING_DATASOURCE_URL=jdbc:mysql://timesheet-mysql:3306/timesheet_db \\
-                             -e SPRING_DATASOURCE_USERNAME=root \\
-                             -e SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD} \\
-                             ${DOCKER_IMAGE}:latest
-                     '''
-                 }
-             }
-         }
-     }
-     post {
-         always {
-             cleanWs()
-             // Notification email alternative
-             script {
-                 currentBuild.result = currentBuild.result ?: 'SUCCESS'
-                 emailext (
-                     subject: "${currentBuild.result}: Job ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-                     body: """
-                         Build: ${env.JOB_NAME} - #${env.BUILD_NUMBER}
-                         Status: ${currentBuild.result}
-                         URL: ${env.BUILD_URL}
-                         Image: ${DOCKER_IMAGE}:${DOCKER_TAG}
-                     """,
-                     to: 'devops@example.com'
-                 )
-             }
-         }
-     }
- }
-
+       post {
+           always {
+               cleanWs()
+               script {
+                   emailext (
+                       subject: "${currentBuild.result}: Job ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                       body: """
+                           Build: ${env.JOB_NAME} - #${env.BUILD_NUMBER}
+                           Status: ${currentBuild.result}
+                           URL: ${env.BUILD_URL}
+                           Image: ${DOCKER_IMAGE}:${DOCKER_TAG}
+                       """,
+                       to: 'devops@example.com'
+                   )
+               }
+           }
+       }
+   }
