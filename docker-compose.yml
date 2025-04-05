@@ -1,49 +1,49 @@
 version: "3.8"
+
 services:
   mysqldb:
-    image: mysql:8.0  # Mise à jour vers MySQL 8.0 pour une version plus récente (optionnel)
+    image: mysql:5.7
     container_name: timesheet-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: 'rootpassword'  # Mot de passe root sécurisé
-      MYSQL_DATABASE: timesheet_db         # Nom de la base de données créée au démarrage
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: timesheet_db
     ports:
-      - "3306:3306"                        # Exposition du port MySQL
+      - "3306:3306"
     volumes:
-      - db:/var/lib/mysql                  # Persistance des données MySQL
+      - db:/var/lib/mysql
     networks:
-      - timesheet-net                      # Réseau partagé avec l'application
+      - timesheet-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]  # Vérifie la disponibilité de MySQL
-      interval: 10s                       # Intervalle entre les vérifications
-      timeout: 5s                         # Temps max d'attente pour une réponse
-      retries: 3                          # Nombre de tentatives avant échec
+      test: ["CMD", "mysqladmin", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   app-timesheet:
-    image: sfaxioussama/kaddem-app:1.0.0  # Image Docker de l'application
+    image: sfaxioussama/kaddem-app:1.0.0
     container_name: timesheet-app
     depends_on:
       mysqldb:
-        condition: service_healthy         # Démarre uniquement si MySQL est sain
-    restart: on-failure                   # Redémarre en cas d'échec
+        condition: service_healthy
+    restart: on-failure
     ports:
-      - "8082:8082"                       # Exposition du port de l'application
+      - "8082:8082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/timesheet_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root    # Utilisateur MySQL (root)
-      SPRING_DATASOURCE_PASSWORD: 'rootpassword'  # Mot de passe correspondant
-      SPRING_JPA_HIBERNATE_DDL-AUTO: update  # Mise à jour automatique du schéma
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_JPA_HIBERNATE_DDL-AUTO: update
     networks:
-      - timesheet-net                     # Réseau partagé avec MySQL
+      - timesheet-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]  # Vérifie l'état de l'app
-      interval: 30s                      # Intervalle plus long pour l'app
-      timeout: 10s                       # Temps max d'attente
-      retries: 3                         # Tentatives avant échec
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  db:                                     # Volume nommé pour les données MySQL
+  db:
 
 networks:
   timesheet-net:
-    driver: bridge                        # Réseau de type bridge
+    driver: bridge

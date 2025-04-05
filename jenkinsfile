@@ -1,9 +1,9 @@
 pipeline {
     agent any
-    environment {
-        DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
-        DOCKER_TAG = '1.0.0'
-    }
+     environment {
+            DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
+            DOCKER_TAG = '1.0.0'
+        }
     stages {
         stage('Build') {
             steps {
@@ -28,39 +28,84 @@ pipeline {
             }
         }
         stage('Docker Build') {
-            steps {
-                script {
-                    // Verify JAR file exists
-                    sh 'ls -la target/*.jar'
-                    // Update Dockerfile base image (if needed, but already correct in this case)
-                    sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
-                    // Build Docker image
-                    sh 'docker build --network=host -t kaddem-app:latest .'
-                    // Tag the image for DockerHub
-                    sh 'docker tag kaddem-app:latest sfaxioussama/kaddem-app:1.0.0'
-                }
-            }
-        }
-        stage('Push to DockerHub') {
-            steps {
-                script {
-                    // Use Jenkins credentials to login to DockerHub
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                      usernameVariable: 'DOCKER_HUB_USER',
-                                                      passwordVariable: 'DOCKER_HUB_PWD')]) {
-                        sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
-                        sh 'docker push sfaxioussama/kaddem-app:1.0.0'
-                    }
-                }
-            }
-        }
-        stage('Deploy with Docker Compose') {
-            steps {
-                script {
-                    // Use Docker Compose via Docker container
-                    sh 'docker run --rm -v $(pwd):/app -w /app docker/compose:latest up -d'
-                }
-            }
-        }
-    }
-}
+                  steps {
+                      script {
+                          // Verify JAR file exists
+                          sh 'ls -la target/*.jar'
+
+                          // Update Dockerfile base image
+                          sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
+
+                          // Build Docker image
+                          sh 'docker build --network=host -t kaddem-app:latest .'
+
+                          // Tag the image for DockerHub
+                          sh 'docker tag kaddem-app:latest sfaxioussama/kaddem-app:1.0.0'
+                      }
+                  }
+              }
+              stage('Push to DockerHub') {
+                  steps {
+                      script {
+                          // Use Jenkins credentials to login to DockerHub
+                          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                         usernameVariable: 'DOCKER_HUB_USER',
+                                                         passwordVariable: 'DOCKER_HUB_PWD')]) {
+                              sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
+                              sh 'docker push sfaxioussama/kaddem-app:1.0.0'
+                          }
+                      }
+                  }
+              }
+    stage('Deploy') {
+               steps {
+                   script {
+                       sh '''
+                           docker stop timesheet-app timesheet-mysql || true
+                           docker rm timesheet-app timesheet-mysql || true
+                           docker network create timesheet-net || true
+
+                           docker run -d --name timesheet-mysql \\
+                               --network timesheet-net \\
+                               -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \\
+                               -e MYSQL_DATABASE=timesheet_db \\
+                               -p 3306:3306 \\
+                               -v mysql_data:/var/lib/mysql \\
+                               --health-cmd="mysqladmin ping" \\
+                               --health-interval=10s \\
+                               --health-timeout=5s \\
+                               --health-retries=3 \\
+                               mysql:5.7
+
+                           timeout 180s bash -c 'while [[ $(docker inspect -f "{{.State.Health.Status}}" timesheet-mysql) != "healthy" ]]; do sleep 5; done'
+
+                           docker run -d --name timesheet-app \\
+                               --network timesheet-net \\
+                               -p 8082:8082 \\
+                               -e SPRING_DATASOURCE_URL=jdbc:mysql://timesheet-mysql:3306/timesheet_db \\
+                               -e SPRING_DATASOURCE_USERNAME=root \\
+                               ${DOCKER_IMAGE}:${DOCKER_TAG}
+                       '''
+                   }
+               }
+           }
+       }
+
+       post {
+           always {
+               cleanWs()
+               script {
+                   emailext (
+                       subject: "${currentBuild.result}: Job ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                       body: """
+                           Build: ${env.JOB_NAME} - #${env.BUILD_NUMBER}
+                           Status: ${currentBuild.result}
+                           URL: ${env.BUILD_URL}
+                           Image: ${DOCKER_IMAGE}:${DOCKER_TAG}
+                       """,
+                       to: 'devops@example.com'
+                   )
+               }
+           }
+       }
+   }
