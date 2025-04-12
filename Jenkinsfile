@@ -8,6 +8,22 @@ pipeline {
                 url : 'https://github.com/firasbessalah/devopsProjet.git'
             }
         }
+
+        stage('Run Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml' 
+                }
+                failure {
+                    echo "Arrêt du pipeline, tests echoués"
+                    error("Tests unitaires échoués.")  
+                }
+            }
+        }
+        
          stage('Compile') {
             steps {
                 sh 'mvn clean compile'
