@@ -107,11 +107,10 @@ pipeline {
 post {
     always {
         emailext (
-            subject: "TEST:",
-            body: """
-                This is a test email from Jenkins.
-            """,
-            to: 'firasbessalahboos@gmail.com'
+            subject: "TEST: Pipeline Email",
+            body: "This is a test email from Jenkins pipeline.",
+            to: 'firasbessalahboos@gmail.com',
+            mimeType: 'text/plain'
         )
     }
 }
