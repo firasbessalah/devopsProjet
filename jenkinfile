@@ -1,5 +1,14 @@
 pipeline {
     agent any
+
+    stages {
+        // Étape 1 : Compilation du projet
+        stage('Compile') {
+            steps {
+                sh 'mvn clean compile'
+            }
+        }
+
   stages { stage('Test') { steps { echo 'Testing email' } } }
     post {
         always {
@@ -11,13 +20,6 @@ pipeline {
             )
         }
     }
-    stages {
-        // Étape 1 : Compilation du projet
-        stage('Compile') {
-            steps {
-                sh 'mvn clean compile'
-            }
-        }
 
         // ✅ Étape 2 : Exécution des tests unitaires JUnit
         stage('Run JUnit Tests') {
