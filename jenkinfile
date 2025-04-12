@@ -103,22 +103,17 @@ pipeline {
         }
     }
 
-    post {
+post {
         always {
-            script {
-                try {
-                    emailext (
-                        subject: "Build Status: ${currentBuild.currentResult} - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: """Build ${currentBuild.currentResult} for ${env.JOB_NAME} #${env.BUILD_NUMBER}
-                        Check console output at ${env.BUILD_URL}console""",
-                        to: 'firas.bessalah@esprit.tn',
-                        mimeType: 'text/plain'
-                    )
-                    echo "Email sent successfully!"
-                } catch (Exception e) {
-                    echo "Failed to send email: ${e.getMessage()}"
-                }
-            }
+            mail (
+                subject: "TEST: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    This is a test email from Jenkins.
+                    Build: ${env.BUILD_URL}
+                    Status: ${currentBuild.result ?: 'UNKNOWN'}
+                """,
+                to: 'firasbessalahboos@gmail.com'
+            )
         }
     }
 }
