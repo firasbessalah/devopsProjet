@@ -1,21 +1,29 @@
 pipeline {
     agent none
     
+    environment {
+        // Shared environment variables
+        ARTIFACT_DIR = 'target'
+        DEPLOYMENT_URL = 'http://192.168.152.129:8089/kaddem'
+        PROMETHEUS_URL = 'http://192.168.152.129:9090/api/v1/query'
+    }
+    
     stages {
-        // Stage 1: Compile on master (Linux)
-        stage('Compile (Master)') {
+        /* ========== MASTER NODE STAGES (Linux) ========== */
+        stage('1. Compile (Master)') {
             agent { label 'master' }
             steps {
-                echo "Running on ${env.NODE_NAME} (Labels: ${env.NODE_LABELS})"
+                echo "🚀 Starting master sequence on ${env.NODE_NAME}"
                 sh 'mvn clean compile'
+                archiveArtifacts artifacts: '${ARTIFACT_DIR}/**/*', allowEmptyArchive: true
             }
         }
         
-        // Stage 2: Windows tests on esprit
-        stage('Windows Tests (Esprit)') {
+        /* ========== ESPRIT NODE STAGES (Windows) ========== */
+        stage('2. Unit Tests (Esprit)') {
             agent { label 'esprit' }
             steps {
-                echo "Running on ${env.NODE_NAME} (Labels: ${env.NODE_LABELS})"
+                echo "🖥️ Starting esprit sequence on ${env.NODE_NAME}"
                 bat 'mvn test'
             }
             post {
@@ -23,63 +31,58 @@ pipeline {
                     junit '**/target/surefire-reports/*.xml'
                 }
                 failure {
-                    error("Windows tests failed on esprit slave")
+                    error("❌ Unit tests failed on esprit")
                 }
             }
         }
         
-        // Stage 3: SonarQube analysis on master
-        stage('SonarQube (Master)') {
+        stage('3. Code Analysis (Master)') {
             agent { label 'master' }
             steps {
-                echo "Running on ${env.NODE_NAME}"
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9cf9850fd06e499c5d1600a4aba4595c5c767100 -Dmaven.test.skip=true'
             }
         }
         
-        // Stage 4: Windows build on esprit
-        stage('Windows Build (Esprit)') {
+        stage('4. Package (Esprit)') {
             agent { label 'esprit' }
             steps {
-                bat 'mvn clean install -Dmaven.test.skip=true'
+                bat 'mvn clean package -DskipTests'
+                bat 'dir /s ${ARTIFACT_DIR}'
             }
         }
         
-        // Stage 5: Nexus deploy on master
-        stage('Nexus Deploy (Master)') {
+        stage('5. Deploy to Nexus (Master)') {
             agent { label 'master' }
             steps {
-                sh 'mvn deploy -Dmaven.test.skip=true'
+                sh 'mvn deploy -DskipTests'
             }
         }
         
-        // Stage 6: Windows verification on esprit
-        stage('Windows Verification (Esprit)') {
+        stage('6. System Check (Esprit)') {
             agent { label 'esprit' }
             steps {
-                bat 'systeminfo'
+                bat 'systeminfo | findstr /C:"OS Name" /C:"OS Version"'
                 bat 'java -version'
+                bat 'mvn -v'
             }
         }
         
-        // Stage 7: Docker operations on master
-        stage('Docker Build (Master)') {
+        /* ========== DOCKER OPERATIONS (Master only) ========== */
+        stage('7. Docker Build (Master)') {
             agent { label 'master' }
             steps {
-                sh 'docker-compose build'
+                sh 'docker-compose build --no-cache'
             }
         }
         
-        // Stage 8: Windows artifacts check on esprit
-        stage('Artifacts Check (Esprit)') {
+        stage('8. Artifact Validation (Esprit)') {
             agent { label 'esprit' }
             steps {
-                bat 'dir target\\*'
+                bat 'powershell "Get-ChildItem ${env:ARTIFACT_DIR} -Recurse | Select-Object Name, Length"'
             }
         }
         
-        // Stage 9: Docker push on master
-        stage('Docker Push (Master)') {
+        stage('9. Docker Publish (Master)') {
             agent { label 'master' }
             steps {
                 script {
@@ -88,29 +91,56 @@ pipeline {
                         usernameVariable: 'DOCKER_USERNAME', 
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
-                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
-                        sh 'docker-compose push'
+                        sh '''
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker-compose push
+                        '''
                     }
                 }
             }
         }
         
-        // Stage 10: Final deployment on master
-        stage('Deploy (Master)') {
+        /* ========== DEPLOYMENT & VERIFICATION ========== */
+        stage('10. Deploy & Verify (Master)') {
             agent { label 'master' }
             steps {
-                sh 'docker-compose up -d'
-                
-                // Verification
-                retry(5) {
-                    sleep 10
-                    def status = sh(
-                        script: 'curl -s -o /dev/null -w "%{http_code}" http://192.168.152.129:8089/kaddem',
-                        returnStdout: true
-                    ).trim()
+                script {
+                    sh 'docker-compose up -d'
+                    
+                    // Health check with retry logic
+                    def attempts = 5
+                    def waitTime = 10
+                    def status = ''
+                    
+                    for (int i = 0; i < attempts; i++) {
+                        try {
+                            status = sh(
+                                script: "curl -s -o /dev/null -w '%{http_code}' ${DEPLOYMENT_URL}",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (status == "200") {
+                                echo "✅ Deployment successful (HTTP 200)"
+                                break
+                            }
+                        } catch (Exception e) {
+                            echo "⚠️ Attempt ${i+1}/${attempts} failed"
+                        }
+                        sleep(waitTime)
+                    }
                     
                     if (status != "200") {
-                        error("Deployment verification failed. HTTP Status: ${status}")
+                        error("Deployment failed. Final status: ${status}")
+                    }
+                    
+                    // Verify Prometheus metrics
+                    def prometheusResponse = sh(
+                        script: "curl -s '${PROMETHEUS_URL}?query=up{job=\"spring-boot-application\"}'",
+                        returnStdout: true
+                    )
+                    
+                    if (!prometheusResponse.contains('"status":"success"')) {
+                        error("Prometheus monitoring check failed")
                     }
                 }
             }
@@ -119,15 +149,42 @@ pipeline {
     
     post {
         always {
-            echo "Pipeline completed"
-            echo "Master node executions: ${currentBuild.rawBuild.getActions(hudson.plugins.sidebar__link.ProjectSidebarLinkAction).size()}"
-            echo "Esprit node executions: ${currentBuild.rawBuild.getActions(hudson.plugins.sidebar__link.BuildSidebarLinkAction).size()}"
+            echo "📊 Pipeline Execution Summary"
+            echo "--------------------------"
+            echo "Master Node: ${env.NODE_NAME}" 
+            echo "Esprit Node: ${currentBuild.buildVariables.NODE_NAME}"
+            echo "Total Duration: ${currentBuild.durationString}"
+            
+            // Cleanup Docker resources if pipeline failed
+            script {
+                if (currentBuild.result == 'FAILURE') {
+                    echo "⚠️ Performing cleanup..."
+                    sh 'docker-compose down || true'
+                }
+            }
         }
+        
         success {
-            echo "SUCCESS: Alternating master/esprit execution completed"
+            slackSend(
+                color: 'good',
+                message: "SUCCESS: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}\n" +
+                         "Nodes: master & esprit\n" +
+                         "Duration: ${currentBuild.durationString}"
+            )
         }
+        
         failure {
-            echo "FAILURE: Pipeline failed at stage ${currentBuild.currentResult}"
+            slackSend(
+                color: 'danger',
+                message: "FAILED: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}\n" +
+                         "Failed Stage: ${currentBuild.currentResult}\n" +
+                         "View logs: ${env.BUILD_URL}console"
+            )
+        }
+        
+        cleanup {
+            echo "🧹 Cleaning up workspace..."
+            deleteDir()
         }
     }
 }
