@@ -25,6 +25,7 @@ pipeline {
             }
         }
 
+
         // Étape 3 : Analyse SonarQube
         stage('MVN Sonarqube') {
             steps {
@@ -77,6 +78,21 @@ pipeline {
                 sh 'docker-compose up -d'
             }
         }
+stage('Expose with Ngrok') {
+    steps {
+        script {
+            // Start ngrok in the background
+            sh 'nohup ngrok http 8089 > ngrok.log 2>&1 &'
+
+            // Wait for ngrok to initialize
+            sleep 5
+
+            // Get public URL from ngrok's local API
+            def ngrokUrl = sh(script: "curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'", returnStdout: true).trim()
+
+            echo "🚀 Ngrok tunnel is running at: ${ngrokUrl}"
+        }
+    }
 
         // Étape 10 : Vérification des métriques Prometheus
         stage('Test Prometheus Metrics') {
