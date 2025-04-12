@@ -25,7 +25,6 @@ pipeline {
             }
         }
 
-
         // Étape 3 : Analyse SonarQube
         stage('MVN Sonarqube') {
             steps {
@@ -78,23 +77,26 @@ pipeline {
                 sh 'docker-compose up -d'
             }
         }
-stage('Expose with Ngrok') {
-    steps {
-        script {
-            // Start ngrok in the background
-            sh 'nohup ngrok http 8089 > ngrok.log 2>&1 &'
 
-            // Wait for ngrok to initialize
-            sleep 5
+        // Étape 10 : Exposition avec Ngrok
+        stage('Expose with Ngrok') {
+            steps {
+                script {
+                    // Start ngrok in the background
+                    sh 'nohup ngrok http 8089 > ngrok.log 2>&1 &'
 
-            // Get public URL from ngrok's local API
-            def ngrokUrl = sh(script: "curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'", returnStdout: true).trim()
+                    // Wait for ngrok to initialize
+                    sleep 5
 
-            echo "🚀 Ngrok tunnel is running at: ${ngrokUrl}"
+                    // Get public URL from ngrok's local API
+                    def ngrokUrl = sh(script: "curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'", returnStdout: true).trim()
+
+                    echo "🚀 Ngrok tunnel is running at: ${ngrokUrl}"
+                }
+            }
         }
-    }
 
-        // Étape 10 : Vérification des métriques Prometheus
+        // Étape 11 : Vérification des métriques Prometheus
         stage('Test Prometheus Metrics') {
             steps {
                 script {
@@ -106,7 +108,7 @@ stage('Expose with Ngrok') {
             }
         }
 
-        // Étape 11 : Vérification du déploiement
+        // Étape 12 : Vérification du déploiement
         stage('Verify Deployment') {
             steps {
                 script {
@@ -119,7 +121,7 @@ stage('Expose with Ngrok') {
         }
     }
 
-post {
+    post {
         always {
             mail (
                 subject: "TEST: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
@@ -132,4 +134,4 @@ post {
             )
         }
     }
-}}
+}
