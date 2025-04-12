@@ -114,7 +114,7 @@ post {
                     Status: ${currentBuild.result ?: 'UNKNOWN'}
                 """,
                 to: 'firasbessalahboos@gmail.com',
-                mimeType: 'text/plain'
+              
             )
         }
     }
