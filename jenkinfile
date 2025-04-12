@@ -2,8 +2,6 @@ pipeline {
     agent any
 
     stages {
-  
-
         // Étape 1 : Compilation du projet
         stage('Compile') {
             steps {
@@ -11,7 +9,7 @@ pipeline {
             }
         }
 
-        // ✅ Étape 2 : Exécution des tests unitaires JUnit
+        // Étape 2 : Exécution des tests unitaires JUnit
         stage('Run JUnit Tests') {
             steps {
                 sh 'mvn test'
@@ -104,33 +102,23 @@ pipeline {
             }
         }
     }
-pipeline {
-    agent any
-    stages {
-        stage('Test Email') {
-            steps {
-                echo 'Attempting to send email'
-            }
-        }
-    }
+
     post {
         always {
             script {
                 try {
                     emailext (
-                        subject: "TEST: Minimal Pipeline",
-                        body: "This is a test email from Jenkins.",
+                        subject: "Build Status: ${currentBuild.currentResult} - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """Build ${currentBuild.currentResult} for ${env.JOB_NAME} #${env.BUILD_NUMBER}
+                        Check console output at ${env.BUILD_URL}console""",
                         to: 'firasbessalahboos@gmail.com',
                         mimeType: 'text/plain'
                     )
                     echo "Email sent successfully!"
                 } catch (Exception e) {
                     echo "Failed to send email: ${e.getMessage()}"
-                    echo "Full exception: ${e}"
                 }
             }
         }
     }
-}
-
 }
