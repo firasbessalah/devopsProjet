@@ -1,6 +1,16 @@
 pipeline {
     agent any
-
+  stages { stage('Test') { steps { echo 'Testing email' } } }
+    post {
+        always {
+            emailext (
+                subject: "TEST: ${JOB_NAME}",
+                body: "This is a test email from Jenkins.",
+                to: 'firasbessalahboos@gmail.com',
+                mimeType: 'text/plain'
+            )
+        }
+    }
     stages {
         // Étape 1 : Compilation du projet
         stage('Compile') {
@@ -102,16 +112,6 @@ pipeline {
             }
         }
     }
-post {
-    always {
-        emailext (
-            subject: "TEST: ${JOB_NAME}",
-            body: "Build URL: ${BUILD_URL}",
-            to: 'firasbessalahboos@gmail.com',
-            replyTo: '$DEFAULT_REPLYTO',  // Inherits global settings
-            attachLog: true  // Optional: Attach build log
-        )
-    }
-}
+
 
 }
