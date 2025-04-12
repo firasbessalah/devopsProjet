@@ -2,9 +2,12 @@ services:
   app:
     image: azizhamed/azizhamed-4twin1
     container_name: azizhamed-4twin1
+
     build:
       context: .
       dockerfile: Dockerfile
+    networks:  
+      - monitoring-net
     network_mode: "host"
     environment:
       # Configuration Serveur
@@ -45,6 +48,8 @@ services:
     image: prom/prometheus
     container_name: kaddem-prometheus
     restart: unless-stopped
+    networks:  
+      - monitoring-net
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -52,16 +57,23 @@ services:
     depends_on:
       - app
 
+
   grafana:
     image: grafana/grafana
     container_name: kaddem-grafana
     restart: unless-stopped
+    networks: 
+      - monitoring-net
     ports:
       - "3000:3000"
     volumes:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
+
+networks:
+  monitoring-net:
+    driver: bridge
 
 volumes:
   grafana-storage:
