@@ -9,17 +9,7 @@ pipeline {
             }
         }
 
-  stages { stage('Test') { steps { echo 'Testing email' } } }
-    post {
-        always {
-            emailext (
-                subject: "TEST: ${JOB_NAME}",
-                body: "This is a test email from Jenkins.",
-                to: 'firasbessalahboos@gmail.com',
-                mimeType: 'text/plain'
-            )
-        }
-    }
+
 
         // ✅ Étape 2 : Exécution des tests unitaires JUnit
         stage('Run JUnit Tests') {
@@ -114,6 +104,19 @@ pipeline {
             }
         }
     }
-
+post {
+        always {
+            emailext (
+                subject: "TEST: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    This is a test email from Jenkins.
+                    Build: ${env.BUILD_URL}
+                    Status: ${currentBuild.result ?: 'UNKNOWN'}
+                """,
+                to: 'firasbessalahboos@gmail.com',
+                mimeType: 'text/plain'
+            )
+        }
+    }
 
 }
