@@ -4,7 +4,11 @@ global:
 
 scrape_configs:
   - job_name: 'spring-boot-app'
-    metrics_path: '/actuator/prometheus'  # Remove /kaddem prefix
+    metrics_path: '/kaddem/actuator/prometheus'
     static_configs:
-      - targets: ['app:8089']  # Use your actual host IP
+      - targets: ['host.docker.internal:8089']
     scrape_timeout: 10s
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
