@@ -6,8 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    networks:  
-      - monitoring-net
     network_mode: "host"
     environment:
       # Configuration Serveur
@@ -48,8 +46,6 @@ services:
     image: prom/prometheus
     container_name: kaddem-prometheus
     restart: unless-stopped
-    networks:  
-      - monitoring-net
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -71,9 +67,7 @@ services:
     depends_on:
       - prometheus
 
-networks:
-  monitoring-net:
-    driver: bridge
+
 
 volumes:
   grafana-storage:
