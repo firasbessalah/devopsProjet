@@ -106,12 +106,23 @@ pipeline {
     }
 post {
     always {
-        emailext (
-            subject: "TEST: Pipeline Email",
-            body: "This is a test email from Jenkins pipeline.",
-            to: 'firasbessalahboos@gmail.com',
-            mimeType: 'text/plain'
-        )
+        script {
+            try {
+                emailext (
+                    subject: "TEST: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "This is a test email from Jenkins.",
+                    to: 'firasbessalahboos@gmail.com',
+                    mimeType: 'text/plain',
+                    smtpHost: 'smtp.gmail.com',
+                    smtpPort: '465',
+                    useSsl: true,
+                    credentialsId: null // Use global credentials
+                )
+                echo "Email sent successfully!"
+            } catch (Exception e) {
+                echo "Failed to send email: ${e.getMessage()}"
+            }
+        }
     }
 }
 
