@@ -58,8 +58,6 @@ services:
     image: grafana/grafana
     container_name: kaddem-grafana
     restart: unless-stopped
-    networks: 
-      - monitoring-net
     ports:
       - "3000:3000"
     volumes:
