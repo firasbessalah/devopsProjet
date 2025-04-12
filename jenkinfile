@@ -102,4 +102,21 @@ pipeline {
             }
         }
     }
+    post {
+        always {
+            emailext (
+                subject: "Build ${currentBuild.result}: ${JOB_NAME} #${BUILD_NUMBER}",
+                body: """
+                    Project: ${JOB_NAME} \n
+                    Build: ${BUILD_NUMBER} \n
+                    Status: ${currentBuild.result} \n
+                    URL: ${BUILD_URL} \n
+                    Logs: ${BUILD_URL}console
+                """,
+                to: 'firasbessalahboos@gmail.com',  // Replace with recipient
+                attachLog: true  // Optional: Attach build log
+            )
+        }
+    }
+
 }
