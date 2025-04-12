@@ -111,7 +111,7 @@ pipeline {
                         subject: "Build Status: ${currentBuild.currentResult} - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                         body: """Build ${currentBuild.currentResult} for ${env.JOB_NAME} #${env.BUILD_NUMBER}
                         Check console output at ${env.BUILD_URL}console""",
-                        to: 'firasbessalahboos@gmail.com',
+                        to: 'firas.bessalah@esprit.tn',
                         mimeType: 'text/plain'
                     )
                     echo "Email sent successfully!"
