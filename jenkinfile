@@ -107,12 +107,10 @@ pipeline {
 post {
         always {
             emailext (
-                subject: "TEST: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "TEST:",
                 body: """
                     This is a test email from Jenkins.
-                    Build: ${env.BUILD_URL}
-                    Status: ${currentBuild.result ?: 'UNKNOWN'}
-                """,
+                   ,
                 to: 'firasbessalahboos@gmail.com',
               
             )
