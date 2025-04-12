@@ -1,190 +1,105 @@
 pipeline {
-    agent none
-    
-    environment {
-        // Shared environment variables
-        ARTIFACT_DIR = 'target'
-        DEPLOYMENT_URL = 'http://192.168.152.129:8089/kaddem'
-        PROMETHEUS_URL = 'http://192.168.152.129:9090/api/v1/query'
-    }
-    
+    agent any
+
     stages {
-        /* ========== MASTER NODE STAGES (Linux) ========== */
-        stage('1. Compile (Master)') {
-            agent { label 'master' }
+        // Étape 1 : Compilation du projet
+        stage('Compile') {
             steps {
-                echo "🚀 Starting master sequence on ${env.NODE_NAME}"
                 sh 'mvn clean compile'
-                archiveArtifacts artifacts: '${ARTIFACT_DIR}/**/*', allowEmptyArchive: true
             }
         }
-        
-        /* ========== ESPRIT NODE STAGES (Windows) ========== */
-        stage('2. Unit Tests (Esprit)') {
-            agent { label 'esprit' }
+
+        // ✅ Étape 2 : Exécution des tests unitaires JUnit
+        stage('Run JUnit Tests') {
             steps {
-                echo "🖥️ Starting esprit sequence on ${env.NODE_NAME}"
-                bat 'mvn test'
+                sh 'mvn test'
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/*.xml'  // Collecte des rapports de tests
                 }
                 failure {
-                    error("❌ Unit tests failed on esprit")
+                    echo "❌ Tests unitaires échoués ! Arrêt du pipeline."
+                    error("Tests unitaires échoués.")  // Arrête le pipeline si les tests échouent
                 }
             }
         }
-        
-        stage('3. Code Analysis (Master)') {
-            agent { label 'master' }
+
+        // Étape 3 : Analyse SonarQube
+        stage('MVN Sonarqube') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_9cf9850fd06e499c5d1600a4aba4595c5c767100 -Dmaven.test.skip=true'
             }
         }
-        
-        stage('4. Package (Esprit)') {
-            agent { label 'esprit' }
+
+        // Étape 4 : Installation du projet
+        stage('Install') {
             steps {
-                bat 'mvn clean package -DskipTests'
-                bat 'dir /s ${ARTIFACT_DIR}'
+                sh 'mvn clean install -Dmaven.test.skip=true'
             }
         }
-        
-        stage('5. Deploy to Nexus (Master)') {
-            agent { label 'master' }
+
+        // Étape 5 : Déploiement sur Nexus
+        stage('MVN Nexus') {
             steps {
-                sh 'mvn deploy -DskipTests'
+                sh 'mvn deploy -Dmaven.test.skip=true'
             }
         }
-        
-        stage('6. System Check (Esprit)') {
-            agent { label 'esprit' }
+
+        // Étape 6 : Construction des images Docker
+        stage('Build Docker Images') {
             steps {
-                bat 'systeminfo | findstr /C:"OS Name" /C:"OS Version"'
-                bat 'java -version'
-                bat 'mvn -v'
+                sh 'docker-compose build'
             }
         }
-        
-        /* ========== DOCKER OPERATIONS (Master only) ========== */
-        stage('7. Docker Build (Master)') {
-            agent { label 'master' }
-            steps {
-                sh 'docker-compose build --no-cache'
-            }
-        }
-        
-        stage('8. Artifact Validation (Esprit)') {
-            agent { label 'esprit' }
-            steps {
-                bat 'powershell "Get-ChildItem ${env:ARTIFACT_DIR} -Recurse | Select-Object Name, Length"'
-            }
-        }
-        
-        stage('9. Docker Publish (Master)') {
-            agent { label 'master' }
+
+        // Étape 7 : Authentification à Docker Hub
+        stage('Login to DockerHub') {
             steps {
                 script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'docker-hub-credentials', 
-                        usernameVariable: 'DOCKER_USERNAME', 
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )]) {
-                        sh '''
-                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                            docker-compose push
-                        '''
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
                     }
                 }
             }
         }
-        
-        /* ========== DEPLOYMENT & VERIFICATION ========== */
-        stage('10. Deploy & Verify (Master)') {
-            agent { label 'master' }
+
+        // Étape 8 : Pousser les images Docker vers Docker Hub
+        stage('Push Docker Image') {
+            steps {
+                sh 'docker-compose push'
+            }
+        }
+
+        // Étape 9 : Déploiement avec Docker Compose
+        stage('Deploy with Docker Compose') {
+            steps {
+                sh 'docker-compose up -d'
+            }
+        }
+
+        // Étape 10 : Vérification des métriques Prometheus
+        stage('Test Prometheus Metrics') {
             steps {
                 script {
-                    sh 'docker-compose up -d'
-                    
-                    // Health check with retry logic
-                    def attempts = 5
-                    def waitTime = 10
-                    def status = ''
-                    
-                    for (int i = 0; i < attempts; i++) {
-                        try {
-                            status = sh(
-                                script: "curl -s -o /dev/null -w '%{http_code}' ${DEPLOYMENT_URL}",
-                                returnStdout: true
-                            ).trim()
-                            
-                            if (status == "200") {
-                                echo "✅ Deployment successful (HTTP 200)"
-                                break
-                            }
-                        } catch (Exception e) {
-                            echo "⚠️ Attempt ${i+1}/${attempts} failed"
-                        }
-                        sleep(waitTime)
-                    }
-                    
-                    if (status != "200") {
-                        error("Deployment failed. Final status: ${status}")
-                    }
-                    
-                    // Verify Prometheus metrics
-                    def prometheusResponse = sh(
-                        script: "curl -s '${PROMETHEUS_URL}?query=up{job=\"spring-boot-application\"}'",
-                        returnStdout: true
-                    )
-                    
-                    if (!prometheusResponse.contains('"status":"success"')) {
-                        error("Prometheus monitoring check failed")
-                    }
+                    def prometheus_url = 'http://192.168.152.129:9090/api/v1/query'
+                    def query = 'up{job="spring-boot-application"}'
+                    def response = sh(script: "curl -s ${prometheus_url}?query=${query}", returnStdout: true)
+                    echo "Prometheus Response: ${response}"
                 }
             }
         }
-    }
-    
-    post {
-        always {
-            echo "📊 Pipeline Execution Summary"
-            echo "--------------------------"
-            echo "Master Node: ${env.NODE_NAME}" 
-            echo "Esprit Node: ${currentBuild.buildVariables.NODE_NAME}"
-            echo "Total Duration: ${currentBuild.durationString}"
-            
-            // Cleanup Docker resources if pipeline failed
-            script {
-                if (currentBuild.result == 'FAILURE') {
-                    echo "⚠️ Performing cleanup..."
-                    sh 'docker-compose down || true'
+
+        // Étape 11 : Vérification du déploiement
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    retry(5) {
+                        sleep 10
+                        sh 'curl -I http://192.168.152.129:8089/kaddem'
+                    }
                 }
             }
-        }
-        
-        success {
-            slackSend(
-                color: 'good',
-                message: "SUCCESS: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}\n" +
-                         "Nodes: master & esprit\n" +
-                         "Duration: ${currentBuild.durationString}"
-            )
-        }
-        
-        failure {
-            slackSend(
-                color: 'danger',
-                message: "FAILED: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}\n" +
-                         "Failed Stage: ${currentBuild.currentResult}\n" +
-                         "View logs: ${env.BUILD_URL}console"
-            )
-        }
-        
-        cleanup {
-            echo "🧹 Cleaning up workspace..."
-            deleteDir()
         }
     }
 }
