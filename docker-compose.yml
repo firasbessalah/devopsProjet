@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   app:
-    image: eyaabaab/eyaabaab-4TWIN1-kaddem
-    container_name: eyaabaab-4TWIN1-kaddem
+    image: eyaabaab/eyaabaab-4twin1-kaddem
+    container_name: eyaabaab-4twin1-kaddem
     build:
       context: .
       dockerfile: Dockerfile
