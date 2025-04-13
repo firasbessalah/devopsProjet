@@ -30,12 +30,14 @@ public class EtudiantRestController {
 	// http://localhost:8089/Kaddem/etudiant/retrieve-etudiant/8
 	@GetMapping("/retrieve-etudiant/{etudiant-id}")
 	public Etudiant retrieveEtudiant(@PathVariable("etudiant-id") Integer etudiantId) {
+		logger.debug("Début de la requête GET /retrieve-etudiant/{}", etudiantId);
 		return etudiantService.retrieveEtudiant(etudiantId);
 	}
 
 	// http://localhost:8089/Kaddem/etudiant/add-etudiant
 	@PostMapping("/add-etudiant")
 	public Etudiant addEtudiant(@RequestBody Etudiant e) {
+		logger.info("Début de la requête POST /add-etudiant avec données: {}", e);
 		Etudiant etudiant = etudiantService.addEtudiant(e);
 		return etudiant;
 	}
@@ -43,12 +45,15 @@ public class EtudiantRestController {
 	// http://localhost:8089/Kaddem/etudiant/remove-etudiant/1
 	@DeleteMapping("/remove-etudiant/{etudiant-id}")
 	public void removeEtudiant(@PathVariable("etudiant-id") Integer etudiantId) {
+		logger.warn("Début de la requête DELETE /remove-etudiant/{}", etudiantId);
 		etudiantService.removeEtudiant(etudiantId);
+		logger.info("Étudiant ID {} supprimé avec succès", etudiantId);
 	}
 
 	// http://localhost:8089/Kaddem/etudiant/update-etudiant
 	@PutMapping("/update-etudiant")
 	public Etudiant updateEtudiant(@RequestBody Etudiant e) {
+		logger.info("Début de la requête PUT /update-etudiant pour l'ID {}", e.getIdEtudiant());
 		Etudiant etudiant= etudiantService.updateEtudiant(e);
 
 		return etudiant;
@@ -57,6 +62,7 @@ public class EtudiantRestController {
 	//@PutMapping("/affecter-etudiant-departement")
 	@PutMapping(value="/affecter-etudiant-departement/{etudiantId}/{departementId}")
 	public void affecterEtudiantToDepartement(@PathVariable("etudiantId") Integer etudiantId, @PathVariable("departementId")Integer departementId){
+		logger.info("Affectation étudiant {} à département {}", etudiantId, departementId);
 		etudiantService.assignEtudiantToDepartement(etudiantId, departementId);
     }
 //addAndAssignEtudiantToEquipeAndContract(Etudiant e, Integer idContrat, Integer idEquipe)
@@ -65,12 +71,13 @@ public class EtudiantRestController {
     @ResponseBody
     public Etudiant addEtudiantWithEquipeAndContract(@RequestBody Etudiant e, @PathVariable("idContrat") Integer idContrat, @PathVariable("idEquipe") Integer idEquipe) {
         Etudiant etudiant = etudiantService.addAndAssignEtudiantToEquipeAndContract(e,idContrat,idEquipe);
+	logger.info("Ajout étudiant avec affectation à contrat {} et équipe {}", idContrat, idEquipe);
         return etudiant;
     }
 
 	@GetMapping(value = "/getEtudiantsByDepartement/{idDepartement}")
 	public List<Etudiant> getEtudiantsParDepartement(@PathVariable("idDepartement") Integer idDepartement) {
-
+		logger.debug("Récupération étudiants par département {}", idDepartement);
 		return etudiantService.getEtudiantsByDepartement(idDepartement);
 	}
 
