@@ -13,8 +13,8 @@ EXPOSE 8081
 RUN apt-get update && apt-get install -y curl
 # Download the .jar file from Nexus and copy it to the container
 ARG NEXUS_URL="http://192.168.40.131:8081/repository/maven-releases/"
-ARG ARTIFACT_PATH="tn/esprit/DevOps_Project/1.0/DevOps_Project-1.0.jar"
+ARG ARTIFACT_PATH="tn/esprit/spring/kaddem/1.0/kaddem-1.0.jar"
 # Downloading the Jar
-RUN curl -o /DevOps_Project-1.0.jar ${NEXUS_URL}${ARTIFACT_PATH}
+RUN curl -o /kaddem-1.0.jar ${NEXUS_URL}${ARTIFACT_PATH}
 ENV JAVA_OPTS="-Dlogging.level.org.springframework.security=DEBUG -Djdk.tls.client.protocols=TLSv1.2"
-ENTRYPOINT ["java", "-jar", "/DevOps_Project-1.0.jar"]
+ENTRYPOINT ["java", "-jar", "/kaddem-1.0.jar"]
