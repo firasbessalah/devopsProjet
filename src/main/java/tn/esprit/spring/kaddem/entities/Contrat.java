@@ -33,14 +33,15 @@ public class Contrat implements Serializable {
 
     private Integer montantContrat;
 
+    @ManyToOne
+    @JoinColumn(name = "etudiant_id") // Foreign key column in contrat table
+    private Etudiant etudiant;
+
     public Contrat(Date dateDebutContrat, Date dateFinContrat, Specialite specialite, Boolean archive, Integer montantContrat) {
         this.dateDebutContrat = dateDebutContrat;
         this.dateFinContrat = dateFinContrat;
         this.specialite = specialite;
         this.archive = archive;
         this.montantContrat = montantContrat;
-    }
-
-    public void setEtudiant(Etudiant e) {
     }
 }
