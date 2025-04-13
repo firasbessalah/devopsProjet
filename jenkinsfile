@@ -1,9 +1,10 @@
 pipeline {
     agent any
-     environment {
-            DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
-            DOCKER_TAG = '1.0.0'
-        }
+    environment {
+        DOCKER_IMAGE = 'sfaxioussama/kaddem-app'
+        DOCKER_TAG = '1.0.0'
+        EMAIL_RECIPIENT = 'devops@example.com'
+    }
     stages {
         stage('Build') {
             steps {
@@ -24,88 +25,124 @@ pipeline {
         }
         stage('Nexus') {
             steps {
-                sh 'mvn deploy -DskipTests'
+                sh 'mvn clean deploy -Dmaven.test.skip=true'
             }
         }
         stage('Docker Build') {
-                  steps {
-                      script {
-                          // Verify JAR file exists
-                          sh 'ls -la target/*.jar'
+            steps {
+                script {
+                    // Build Docker image (no need to list target/*.jar since we fetch from Nexus)
+                    sh 'docker build --network=host -t kaddem-app:latest .'
+                    sh 'docker tag kaddem-app:latest ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                }
+            }
+        }
+        stage('Push to DockerHub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                   usernameVariable: 'DOCKER_HUB_USER',
+                                                   passwordVariable: 'DOCKER_HUB_PWD')]) {
+                        sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
+                        sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                    }
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+                        set -e
 
-                          // Update Dockerfile base image
-                          sh "sed -i 's|openjdk:11-jdk-alpine|eclipse-temurin:11-jdk-alpine|g' Dockerfile"
+                        # Stop and remove any containers using ports 3306 and 8082
+                        echo "Checking for containers on port 3306..."
+                        CONTAINERS_3306=$(docker ps -q --filter "publish=3306")
+                        if [ -n "$CONTAINERS_3306" ]; then
+                            echo "Port 3306 in use, stopping containers: $CONTAINERS_3306"
+                            docker stop $CONTAINERS_3306 || true
+                            docker rm -f $CONTAINERS_3306 || true
+                        fi
 
-                          // Build Docker image
-                          sh 'docker build --network=host -t kaddem-app:latest .'
+                        echo "Checking for containers on port 8082..."
+                        CONTAINERS_8082=$(docker ps -q --filter "publish=8082")
+                        if [ -n "$CONTAINERS_8082" ]; then
+                            echo "Port 8082 in use, stopping containers: $CONTAINERS_8082"
+                            docker stop $CONTAINERS_8082 || true
+                            docker rm -f $CONTAINERS_8082 || true
+                        fi
 
-                          // Tag the image for DockerHub
-                          sh 'docker tag kaddem-app:latest sfaxioussama/kaddem-app:1.0.0'
-                      }
-                  }
-              }
-              stage('Push to DockerHub') {
-                  steps {
-                      script {
-                          // Use Jenkins credentials to login to DockerHub
-                          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                         usernameVariable: 'DOCKER_HUB_USER',
-                                                         passwordVariable: 'DOCKER_HUB_PWD')]) {
-                              sh 'echo $DOCKER_HUB_PWD | docker login -u $DOCKER_HUB_USER --password-stdin'
-                              sh 'docker push sfaxioussama/kaddem-app:1.0.0'
-                          }
-                      }
-                  }
-              }
-    stage('Deploy') {
-               steps {
-                   script {
-                       sh '''
-                           docker stop timesheet-app timesheet-mysql || true
-                           docker rm timesheet-app timesheet-mysql || true
-                           docker network create timesheet-net || true
+                        # Additional cleanup for known container names
+                        docker stop kaddem-app kaddem-mysql || true
+                        docker rm -f kaddem-app kaddem-mysql || true
 
-                           docker run -d --name timesheet-mysql \\
-                               --network timesheet-net \\
-                               -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \\
-                               -e MYSQL_DATABASE=timesheet_db \\
-                               -p 3306:3306 \\
-                               -v mysql_data:/var/lib/mysql \\
-                               --health-cmd="mysqladmin ping" \\
-                               --health-interval=10s \\
-                               --health-timeout=5s \\
-                               --health-retries=3 \\
-                               mysql:5.7
+                        # Clean up any stopped containers still binding ports
+                        docker rm -f $(docker ps -a -q --filter "publish=3306") || true
+                        docker rm -f $(docker ps -a -q --filter "publish=8082") || true
 
-                           timeout 180s bash -c 'while [[ $(docker inspect -f "{{.State.Health.Status}}" timesheet-mysql) != "healthy" ]]; do sleep 5; done'
+                        # Clean up and recreate network
+                        docker network rm kaddem-net || true
+                        docker network create kaddem-net || true
 
-                           docker run -d --name timesheet-app \\
-                               --network timesheet-net \\
-                               -p 8082:8082 \\
-                               -e SPRING_DATASOURCE_URL=jdbc:mysql://timesheet-mysql:3306/timesheet_db \\
-                               -e SPRING_DATASOURCE_USERNAME=root \\
-                               ${DOCKER_IMAGE}:${DOCKER_TAG}
-                       '''
-                   }
-               }
-           }
-       }
+                        # Run MySQL container
+                        docker run -d --name kaddem-mysql \\
+                            --network kaddem-net \\
+                            -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \\
+                            -e MYSQL_DATABASE=kaddem \\
+                            -p 3306:3306 \\
+                            -v mysql_data:/var/lib/mysql \\
+                            --health-cmd="mysqladmin ping -h localhost" \\
+                            --health-interval=10s \\
+                            --health-timeout=5s \\
+                            --health-retries=5 \\
+                            mysql:5.7
 
-       post {
-           always {
-               cleanWs()
-               script {
-                   emailext (
-                       subject: "${currentBuild.result}: Job ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-                       body: """
-                           Build: ${env.JOB_NAME} - #${env.BUILD_NUMBER}
-                           Status: ${currentBuild.result}
-                           URL: ${env.BUILD_URL}
-                           Image: ${DOCKER_IMAGE}:${DOCKER_TAG}
-                       """,
-                       to: 'devops@example.com'
-                   )
-               }
-           }
-       }
-   }
+                        # Wait for MySQL to be healthy
+                        timeout 180s bash -c 'until docker inspect kaddem-mysql --format "{{.State.Health.Status}}" | grep "healthy"; do sleep 5; echo "Waiting for MySQL..."; done'
+
+                        # Run application container
+                        docker run -d --name kaddem-app \\
+                            --network kaddem-net \\
+                            -p 8082:8082 \\
+                            -e SPRING_PROFILES_ACTIVE=docker \\
+                            -e SPRING_DATASOURCE_URL=jdbc:mysql://kaddem-mysql:3306/kaddem?createDatabaseIfNotExist=true \\
+                            -e SPRING_DATASOURCE_USERNAME=root \\
+                            -e SPRING_DATASOURCE_PASSWORD= \\
+                            -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
+                            -e SERVER_SERVLET_CONTEXT_PATH=/kaddem \\
+                            -e SERVER_PORT=8082 \\
+                            ${DOCKER_IMAGE}:${DOCKER_TAG}
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                emailext(
+                    subject: "${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """<h2>Build Notification</h2>
+                        <p><strong>Job:</strong> ${env.JOB_NAME}</p>
+                        <p><strong>Build #:</strong> ${env.BUILD_NUMBER}</p>
+                        <p><strong>Status:</strong> ${currentBuild.currentResult}</p>
+                        <p><strong>URL:</strong> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                        <p><strong>Image:</strong> ${DOCKER_IMAGE}:${DOCKER_TAG}</p>
+                    """,
+                    to: env.EMAIL_RECIPIENT,
+                    mimeType: 'text/html',
+                    replyTo: 'devops@example.com',
+                    from: 'devops@example.com',
+                    smtp: [
+                        host: 'smtp.gmail.com',
+                        port: '587',
+                        auth: 'true',
+                        user: 'devops@example.com',
+                        password: credentials('gmail-smtp-password')
+                    ]
+                )
+            }
+            cleanWs()
+        }
+    }
+}

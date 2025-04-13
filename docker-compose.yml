@@ -3,26 +3,26 @@ version: "3.8"
 services:
   mysqldb:
     image: mysql:5.7
-    container_name: timesheet-mysql
+    container_name: kaddem-mysql
     restart: unless-stopped
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-      MYSQL_DATABASE: timesheet_db
+      MYSQL_DATABASE: kaddem
     ports:
       - "3306:3306"
     volumes:
       - db:/var/lib/mysql
     networks:
-      - timesheet-net
+      - kaddem-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
 
-  app-timesheet:
+  app:
     image: sfaxioussama/kaddem-app:1.0.0
-    container_name: timesheet-app
+    container_name: kaddem-app
     depends_on:
       mysqldb:
         condition: service_healthy
@@ -30,20 +30,19 @@ services:
     ports:
       - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/timesheet_db?createDatabaseIfNotExist=true
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/kaddem?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_JPA_HIBERNATE_DDL-AUTO: update
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8082
+      SERVER_SERVLET_CONTEXT_PATH: /kaddem
     networks:
-      - timesheet-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - kaddem-net
 
 volumes:
   db:
 
 networks:
-  timesheet-net:
+  kaddem-net:
     driver: bridge
