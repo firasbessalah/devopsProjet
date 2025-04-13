@@ -4,8 +4,8 @@ pipeline {
     stages {
         stage('Git') {
             steps {
-                git branch : 'EyaABAAB-4TWIN1-G1',
-                url : 'https://github.com/firasbessalah/devopsProjet.git'
+                git branch: 'EyaABAAB-4TWIN1-G1',
+                url: 'https://github.com/firasbessalah/devopsProjet.git'
             }
         }
 
@@ -24,24 +24,25 @@ pipeline {
             }
         }
         
-         stage('Compile') {
+        stage('Compile') {
             steps {
                 sh 'mvn clean compile'
             }
         }
-     stage('MVN Sonarqube') {
+        
+        stage('MVN Sonarqube') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_47f6498f3ecfe57ebbe1dc26df26f2fa42ceaaf4 -Dmaven.test.skip=true'
             }
         }
 
-          stage('MVN Nexus') {
+        stage('MVN Nexus') {
             steps {
                 sh 'mvn deploy -Dmaven.test.skip=true'
             }
         }
 
-          stage('Build Docker image') {
+        stage('Build Docker image') {
             steps {
                 sh 'docker build -t eyaabaab/eyaabaab-4twin1-g1:latest .'
             }
@@ -49,9 +50,14 @@ pipeline {
         
         stage('Docker Compose Up') {
             steps {
-        sh 'docker compose up -d'
-    }
-}
-        
+                sh '''
+                docker compose down || true
+                
+                docker compose up -d
+                
+                docker compose ps
+                '''
+            }
+        }
     }
 }
