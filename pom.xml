@@ -37,7 +37,7 @@
             <version>1.18.30</version> 
             <scope>provided</scope>
         </dependency>
-        <!-- Pour JUnit 5 -->
+  
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -51,7 +51,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Pour Mockito -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -84,7 +83,7 @@
  <distributionManagement>
     <repository>
         <id>deploymentRepo</id>
-        <url>http://localhost:8081/repository/maven-snapshots/</url>
+        <url>http://localhost:8081/repository/4TWIN1-G1-kaddem/</url>
     </repository>
 </distributionManagement>
 
