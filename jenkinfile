@@ -78,32 +78,24 @@ pipeline {
             }
         }
 
-        // Étape 10 : Exposition avec Ngrok
-stage('Expose with Ngrok') {
-    steps {
-        script {
-            // Print current working directory (for debugging)
-            sh 'pwd'
-            
-            // Start ngrok with output logged into an absolute path
-            sh 'nohup ngrok http 8089 > $WORKSPACE/ngrok.log 2>&1 &'
-            
-            // Wait to ensure Ngrok has enough time to fully initialize
-            sleep 15
-            
-            // Capture the entire Ngrok API response
-            def ngrokApiResp = sh(script: "curl -s http://localhost:4040/api/tunnels", returnStdout: true).trim()
-            echo "Ngrok API response: ${ngrokApiResp}"
-            
-            // Parse the public URL using jq
-            def ngrokUrl = sh(script: "echo '${ngrokApiResp}' | jq -r '.tunnels[0].public_url'", returnStdout: true).trim()
-            echo "🚀 Ngrok tunnel is running at: ${ngrokUrl}"
-            
-            // Optionally save the URL to a file for later use
-            sh "echo '${ngrokUrl}' > $WORKSPACE/ngrok_url.txt"
+     
+      // Étape 10 : Exposition avec Ngrok
+        stage('Expose with Ngrok') {
+            steps {
+                script {
+                    // Start ngrok in the background
+                    sh 'nohup ngrok http 8089 > ngrok.log 2>&1 &'
+
+                    // Wait for ngrok to initialize
+                    sleep 5
+
+                    // Get public URL from ngrok's local API
+                    def ngrokUrl = sh(script: "curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'", returnStdout: true).trim()
+
+                    echo "🚀 Ngrok tunnel is running at: ${ngrokUrl}"
+                }
+            }
         }
-    }
-}
 
 
         // Étape 11 : Vérification des métriques Prometheus
