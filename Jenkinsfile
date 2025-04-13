@@ -43,7 +43,7 @@ pipeline {
 
           stage('Build Docker image') {
             steps {
-                sh 'docker build -t eyaabaab/eyaabaab-4TWIN1-G1:latest .'
+                sh 'docker build -t eyaabaab/eyaabaab-4twin1-g1:latest .'
             }
         }
         
