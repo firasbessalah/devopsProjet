@@ -110,7 +110,6 @@ pipeline {
                             -e SPRING_DATASOURCE_PASSWORD= \\
                             -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
                             -e SERVER_SERVLET_CONTEXT_PATH=/kaddem \\
-                            -e SERVER_PORT=8082 \\
                             ${DOCKER_IMAGE}:${DOCKER_TAG}
                     '''
                 }
