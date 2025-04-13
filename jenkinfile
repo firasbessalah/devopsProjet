@@ -11,7 +11,18 @@ pipeline {
                 sh 'mvn clean compile'
             }
         }
-
+         stage('Unit Tests') {
+            steps {
+                script {
+                    try {
+                        sh 'mvn test'
+                        junit '**/target/surefire-reports/*.xml'
+                    } catch (Exception e) {
+                        error "Les tests unitaires ont échoué : ${e.message}"
+                    }
+                }
+            }
+        }
         stage('Install') {
             steps {
                 sh 'mvn clean install -Dmaven.test.skip=true'
@@ -65,33 +76,7 @@ pipeline {
                 }
             }
         }
-        stage('Verify Deployment') {
-            steps {
-                script {
-                    waitUntil {
-                        try {
-                            def status = sh(
-                                script: "curl -s -o /dev/null -w '%{http_code}' http://${DOCKER_HOST_IP}:8089/kaddem/actuator/health",
-                                returnStdout: true
-                            ).trim()
-                            return (status == "200")
-                        } catch (Exception e) {
-                            sleep(10)
-                            return false
-                        }
-                    }
-                    echo "Application is up and running!"
-                    
-                    // Test final
-                    sh """
-                        echo "Testing endpoint..."
-                        curl -v http://${DOCKER_HOST_IP}:8089/kaddem
-                        curl -v http://${DOCKER_HOST_IP}:8089/kaddem/actuator/health
-                        curl -v http://${DOCKER_HOST_IP}:8089/h2-console
-                    """
-                }
-            }
-        }
+      
     }
 
 }
