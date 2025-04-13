@@ -1,22 +1,23 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql-db-${BUILD_NUMBER}  # Unique par build
+    container_name: mysql-db
+    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: kaddem
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data_${BUILD_NUMBER}:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
 
   app:
     image: eyaabaab/eyaabaab-g1-kaddem:latest
-    container_name: kaddem-app-${BUILD_NUMBER}  # Unique par build
+    container_name: kaddem-app
     depends_on:
       - mysql
     ports:
       - "8089:8089"
 
 volumes:
-  mysql_data_${BUILD_NUMBER}:
+  mysql_data:
