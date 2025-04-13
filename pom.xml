@@ -81,6 +81,12 @@
         </dependency>
 
     </dependencies>
+ <distributionManagement>
+    <repository>
+        <id>deploymentRepo</id>
+        <url>http://localhost:8081/repository/maven-snapshots/</url>
+    </repository>
+</distributionManagement>
 
     <build>
         <plugins>
