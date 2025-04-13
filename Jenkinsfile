@@ -40,6 +40,18 @@ pipeline {
                 sh 'mvn deploy -Dmaven.test.skip=true'
             }
         }
+
+          stage('Build Docker image') {
+            steps {
+                sh 'docker build -t eyaabaab/eyaabaab-4TWIN1-G1:latest .'
+            }
+        }
+        
+        stage('Docker Compose Up') {
+            steps {
+        sh 'docker compose up -d'
+    }
+}
         
     }
 }
