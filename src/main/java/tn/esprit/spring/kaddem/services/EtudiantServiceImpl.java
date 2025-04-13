@@ -16,6 +16,7 @@ import tn.esprit.spring.kaddem.repositories.EquipeRepository;
 import tn.esprit.spring.kaddem.repositories.EtudiantRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -29,42 +30,87 @@ public class EtudiantServiceImpl implements IEtudiantService{
     @Autowired
     DepartementRepository departementRepository;
 	public List<Etudiant> retrieveAllEtudiants(){
-	return (List<Etudiant>) etudiantRepository.findAll();
+	//	log.info("Retrieving all students");
+		List<Etudiant> etudiants = (List<Etudiant>) etudiantRepository.findAll();
+		//log.debug("Found {} students", etudiants.size());
+	return etudiants;
 	}
 
 	public Etudiant addEtudiant (Etudiant e){
-		return etudiantRepository.save(e);
+	//	log.info("Adding new student: {}", e);
+		Etudiant savedEtudiant = etudiantRepository.save(e);
+	//	log.info("Student added successfully with ID: {}", savedEtudiant.getIdEtudiant());
+		return savedEtudiant;
 	}
 
 	public Etudiant updateEtudiant (Etudiant e){
-		return etudiantRepository.save(e);
+	//	log.info("Updating student with ID: {}", e.getIdEtudiant());
+		Etudiant updatedEtudiant = etudiantRepository.save(e);
+	//	log.info("Student with ID {} updated successfully", updatedEtudiant.getIdEtudiant());
+		return updatedEtudiant;
 	}
 
 	public Etudiant retrieveEtudiant(Integer  idEtudiant){
-		return etudiantRepository.findById(idEtudiant).get();
+	//	log.debug("Retrieving student with ID: {}", idEtudiant);
+		Optional<Etudiant> etudiant = etudiantRepository.findById(idEtudiant);
+		if (etudiant.isEmpty()) {
+		//	log.error("Student not found with ID: {}", idEtudiant);
+			throw new RuntimeException("Student not found");
+		}
+		return etudiant.get();
 	}
 
 	public void removeEtudiant(Integer idEtudiant){
-	Etudiant e=retrieveEtudiant(idEtudiant);
-	etudiantRepository.delete(e);
+		//log.warn("Deleting student with ID: {}", idEtudiant);
+		Etudiant e = retrieveEtudiant(idEtudiant);
+		etudiantRepository.delete(e);
+		//log.info("Student with ID {} deleted successfully", idEtudiant);
 	}
 
 	public void assignEtudiantToDepartement (Integer etudiantId, Integer departementId){
-        Etudiant etudiant = etudiantRepository.findById(etudiantId).orElse(null);
-        Departement departement = departementRepository.findById(departementId).orElse(null);
-        etudiant.setDepartement(departement);
-        etudiantRepository.save(etudiant);
+		//log.info("Assigning student {} to department {}", etudiantId, departementId);
+		Etudiant etudiant = etudiantRepository.findById(etudiantId)
+				.orElseThrow(() -> {
+					//log.error("Student not found with ID: {}", etudiantId);
+					return new RuntimeException("Student not found");
+				});
+
+		Departement departement = departementRepository.findById(departementId)
+				.orElseThrow(() -> {
+					//log.error("Department not found with ID: {}", departementId);
+					return new RuntimeException("Department not found");
+				});
+
+		etudiant.setDepartement(departement);
+		etudiantRepository.save(etudiant);
+		log.info("Student {} successfully assigned to department {}",
+				etudiant.getIdEtudiant(), departement.getIdDepart());
 	}
 	@Transactional
 	public Etudiant addAndAssignEtudiantToEquipeAndContract(Etudiant e, Integer idContrat, Integer idEquipe){
-		Contrat c=contratRepository.findById(idContrat).orElse(null);
-		Equipe eq=equipeRepository.findById(idEquipe).orElse(null);
-		c.setEtudiant(e);
-		eq.getEtudiants().add(e);
-return e;
+		log.info("Adding and assigning student to contract {} and team {}", idContrat, idEquipe);
+
+		Contrat contrat = contratRepository.findById(idContrat)
+				.orElseThrow(() -> {
+					log.error("Contract not found with ID: {}", idContrat);
+					return new RuntimeException("Contract not found");
+				});
+
+		Equipe equipe = equipeRepository.findById(idEquipe)
+				.orElseThrow(() -> {
+					log.error("Team not found with ID: {}", idEquipe);
+					return new RuntimeException("Team not found");
+				});
+
+		contrat.setEtudiant(e);
+		equipe.getEtudiants().add(e);
+
+		log.info("Student {} successfully assigned to contract {} and team {}",
+				e.getIdEtudiant(), contrat.getIdContrat(), equipe.getIdEquipe());
+		return etudiantRepository.save(e);
 	}
 
 	public 	List<Etudiant> getEtudiantsByDepartement (Integer idDepartement){
-return  etudiantRepository.findEtudiantsByDepartement_IdDepart((idDepartement));
-	}
+		log.debug("Retrieving students by department ID: {}", idDepartement);
+		return etudiantRepository.findEtudiantsByDepartement_IdDepart(idDepartement);	}
 }

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
+
 import tn.esprit.spring.kaddem.entities.Contrat;
 import tn.esprit.spring.kaddem.entities.Equipe;
 import tn.esprit.spring.kaddem.entities.Etudiant;
@@ -34,7 +35,9 @@ public class EquipeServiceImpl implements IEquipeService{
 	}
 
 	public Equipe retrieveEquipe(Integer equipeId){
+
 		return equipeRepository.findById(equipeId).get();
+
 	}
 
 	public Equipe updateEquipe(Equipe e){
