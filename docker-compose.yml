@@ -1,0 +1,69 @@
+version: '3'
+services:
+  mysql-db:
+    image: mysql:latest
+    container_name: devops-db
+    ports:
+      - "3333:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: devops_project_db
+    volumes:
+      - ./data.sql:/docker-entrypoint-initdb.d/data.sql
+    networks:
+      - my-network
+    restart: always
+
+  back-app:
+    image: hsinemt/devopsproject:backapp
+    container_name: spring-back-project
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysql-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://devops-db:3306/devops_project_db?createDatabaseIfNotExist=true&useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD:
+    networks:
+      - my-network
+    volumes:
+      - ./backend-data:/app/data
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - my-network
+    volumes:
+      - ./data/prometheus/config:/etc/prometheus
+    #      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - my-network
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+##    restart: always
+
+networks:
+  my-network:
+
+volumes:
+  grafana-data:
+  prometheus-data:
