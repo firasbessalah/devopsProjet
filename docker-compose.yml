@@ -1,22 +1,46 @@
 services:
-  mysql:
-    image: mysql:8.0  
-    container_name: mysql-db
+  mysqldb:
+    image: mysql:5.7
+    container_name: kaddem-mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
       MYSQL_DATABASE: kaddem
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - db:/var/lib/mysql
+    networks:
+      - kaddem-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
-    build: .
-    container_name: EyaAbaab-4TWIN1-G1-kaddem
+    image: eyaabaab/eyaabaab-4TWIN1-G1:1.0.0
+    container_name: eyaabaab-4TWIN1-G1
     depends_on:
-      - mysql
+      mysqldb:
+        condition: service_healthy
+    restart: on-failure
     ports:
       - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/kaddem?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8082
+      SERVER_SERVLET_CONTEXT_PATH: /kaddem
+    networks:
+      - kaddem-net
 
 volumes:
-  mysql_data:
+  db:
+
+networks:
+  kaddem-net:
+    driver: bridge
