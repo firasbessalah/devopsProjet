@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn package
 
 ## Stage 2: Create the runtime container
 FROM openjdk:8-jre-slim
-EXPOSE 8081
+EXPOSE 8089
 # Install curl in the container
 RUN apt-get update && apt-get install -y curl
 # Download the .jar file from Nexus and copy it to the container
