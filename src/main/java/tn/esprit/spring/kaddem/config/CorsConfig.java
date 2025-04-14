@@ -14,9 +14,7 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allow requests from both localhost and IP address
-        config.addAllowedOrigin("http://localhost:4200");
-        // Add this line to allow requests from your Angular app to your backend IP
+        // Allow requests from your Angular app
         config.addAllowedOrigin("http://localhost:4200");
 
         // Allow all HTTP methods and headers
