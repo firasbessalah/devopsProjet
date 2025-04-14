@@ -71,7 +71,5 @@ volumes:
   grafana-storage:
 
 networks:
-  my-network:
-    driver: bridge
   monitoring-net:
     driver: bridge
