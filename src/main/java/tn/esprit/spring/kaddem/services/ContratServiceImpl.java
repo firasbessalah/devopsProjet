@@ -22,6 +22,51 @@ public class ContratServiceImpl implements IContratService {
 	private EtudiantRepository etudiantRepository;
 
 	@Override
+	public List<Contrat> retrieveAllContrats() {
+		return contratRepository.findAll();
+	}
+
+	@Override
+	public Contrat addContrat(Contrat ce) {
+		return contratRepository.save(ce);
+	}
+
+	@Override
+	public Contrat updateContrat(Contrat ce) {
+		if (contratRepository.existsById(ce.getIdContrat())) {
+			return contratRepository.save(ce);
+		}
+		return null;
+	}
+
+	@Override
+	public Contrat retrieveContrat(Integer idContrat) {
+		return contratRepository.findById(idContrat).orElse(null);
+	}
+
+	@Override
+	public void removeContrat(Integer idContrat) {
+		contratRepository.deleteById(idContrat);
+	}
+
+	@Override
+	public Contrat affectContratToEtudiant(Integer idContrat, String nomE, String prenomE) {
+		Etudiant etudiant = etudiantRepository.findByNomEAndPrenomE(nomE, prenomE);
+		if (etudiant == null) {
+			return contratRepository.findById(idContrat).orElse(null);
+		}
+		if (etudiant.getContrats().stream().filter(c -> !c.getArchive()).count() >= 5) {
+			return contratRepository.findById(idContrat).orElse(null);
+		}
+		Contrat contrat = contratRepository.findById(idContrat).orElse(null);
+		if (contrat != null) {
+			contrat.setEtudiant(etudiant);
+			return contratRepository.save(contrat);
+		}
+		return null;
+	}
+
+	@Override
 	public float getChiffreAffaireEntreDeuxDates(Date startDate, Date endDate) {
 		List<Contrat> contrats = contratRepository.findAll();
 		float total = 0;
@@ -50,54 +95,12 @@ public class ContratServiceImpl implements IContratService {
 						total += 350 * months;
 						break;
 					case SECURITE:
-						total += 450 * months; // Ensure this is exactly 450
+						total += 450 * months;
 						break;
 				}
 			}
 		}
 		return total;
-	}
-
-	@Override
-	public List<Contrat> retrieveAllContrats() {
-		return null;
-	}
-
-	@Override
-	public Contrat updateContrat(Contrat ce) {
-		return null;
-	}
-
-	@Override
-	public Contrat addContrat(Contrat ce) {
-		return null;
-	}
-
-	@Override
-	public Contrat retrieveContrat(Integer idContrat) {
-		return null;
-	}
-
-	@Override
-	public void removeContrat(Integer idContrat) {
-
-	}
-
-	@Override
-	public Contrat affectContratToEtudiant(Integer idContrat, String nomE, String prenomE) {
-		Etudiant etudiant = etudiantRepository.findByNomEAndPrenomE(nomE, prenomE);
-		if (etudiant == null) {
-			return contratRepository.findById(idContrat).orElse(null);
-		}
-		if (etudiant.getContrats().stream().filter(c -> !c.getArchive()).count() >= 5) {
-			return contratRepository.findById(idContrat).orElse(null);
-		}
-		Contrat contrat = contratRepository.findById(idContrat).orElse(null);
-		if (contrat != null) {
-			contrat.setEtudiant(etudiant);
-			return contratRepository.save(contrat);
-		}
-		return null;
 	}
 
 	@Override
