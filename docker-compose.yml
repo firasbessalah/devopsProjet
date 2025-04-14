@@ -63,7 +63,7 @@ services:
     networks:
       - backend-network
     depends_on:
-      - prometheus-devops
+      - prometheus
     restart: unless-stopped
 
 volumes:
