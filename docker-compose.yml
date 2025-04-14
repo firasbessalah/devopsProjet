@@ -11,8 +11,8 @@ services:
       - mysql_data:/var/lib/mysql
 
   app:
-    build: .  # Construit l'image localement depuis le Dockerfile
-    container_name: kaddem-app
+    build: .
+    container_name: EyaAbaab-4TWIN1-G1-kaddem
     depends_on:
       - mysql
     ports:
