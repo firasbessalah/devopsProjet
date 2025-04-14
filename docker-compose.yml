@@ -55,7 +55,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
+    container_name: grafana-devops
     ports:
       - "3000:3000"
     volumes:
@@ -63,7 +63,7 @@ services:
     networks:
       - backend-network
     depends_on:
-      - prometheus
+      - prometheus-devops
     restart: unless-stopped
 
 volumes:
