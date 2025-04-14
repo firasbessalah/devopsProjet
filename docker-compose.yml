@@ -31,7 +31,7 @@ services:
       - ./backend-data:/app/data
     restart: always
     
-    prometheus:
+  prometheus:
     image: prom/prometheus
     container_name: kaddem-prometheus
     restart: unless-stopped
@@ -40,7 +40,7 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - app
+      - back-app
       - node-exporter
     networks:
       - monitoring-net
@@ -71,5 +71,7 @@ volumes:
   grafana-storage:
 
 networks:
+  my-network:
+    driver: bridge
   monitoring-net:
     driver: bridge
