@@ -22,31 +22,65 @@ public class ContratServiceImpl implements IContratService {
 	private EtudiantRepository etudiantRepository;
 
 	@Override
+	public float getChiffreAffaireEntreDeuxDates(Date startDate, Date endDate) {
+		List<Contrat> contrats = contratRepository.findAll();
+		float total = 0;
+
+		// Calculate months between dates
+		Calendar startCal = Calendar.getInstance();
+		startCal.setTime(startDate);
+		Calendar endCal = Calendar.getInstance();
+		endCal.setTime(endDate);
+		int months = (endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)) * 12 +
+				(endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH));
+		if (months <= 0) {
+			months = 1; // Minimum 1 month for same-month dates
+		}
+
+		for (Contrat contrat : contrats) {
+			if (contrat.getSpecialite() != null) {
+				switch (contrat.getSpecialite()) {
+					case IA:
+						total += 300 * months;
+						break;
+					case CLOUD:
+						total += 400 * months;
+						break;
+					case RESEAUX:
+						total += 350 * months;
+						break;
+					case SECURITE:
+						total += 450 * months; // Ensure this is exactly 450
+						break;
+				}
+			}
+		}
+		return total;
+	}
+
+	@Override
 	public List<Contrat> retrieveAllContrats() {
-		return contratRepository.findAll();
-	}
-
-	@Override
-	public Contrat retrieveContrat(Integer idContrat) {
-		return contratRepository.findById(idContrat).orElse(null);
-	}
-
-	@Override
-	public Contrat addContrat(Contrat ce) {
-		return contratRepository.save(ce);
+		return null;
 	}
 
 	@Override
 	public Contrat updateContrat(Contrat ce) {
-		if (contratRepository.existsById(ce.getIdContrat())) {
-			return contratRepository.save(ce);
-		}
+		return null;
+	}
+
+	@Override
+	public Contrat addContrat(Contrat ce) {
+		return null;
+	}
+
+	@Override
+	public Contrat retrieveContrat(Integer idContrat) {
 		return null;
 	}
 
 	@Override
 	public void removeContrat(Integer idContrat) {
-		contratRepository.deleteById(idContrat);
+
 	}
 
 	@Override
@@ -67,44 +101,6 @@ public class ContratServiceImpl implements IContratService {
 	}
 
 	@Override
-	public float getChiffreAffaireEntreDeuxDates(Date startDate, Date endDate) {
-		List<Contrat> contrats = contratRepository.findAll();
-		float total = 0;
-
-		Calendar startCal = Calendar.getInstance();
-		startCal.setTime(startDate);
-		Calendar endCal = Calendar.getInstance();
-		endCal.setTime(endDate);
-		int months = (endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)) * 12 +
-				(endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH));
-		if (months <= 0) {
-			months = 1;
-		}
-
-		for (Contrat contrat : contrats) {
-			if (contrat.getSpecialite() != null && !contrat.getArchive() &&
-					!contrat.getDateFinContrat().before(startDate) &&
-					!contrat.getDateDebutContrat().after(endDate)) {
-				switch (contrat.getSpecialite()) {
-					case IA:
-						total += 300 * months;
-						break;
-					case CLOUD:
-						total += 400 * months;
-						break;
-					case RESEAUX:
-						total += 350 * months;
-						break;
-					case SECURITE:
-						total += 450 * months;
-						break;
-				}
-			}
-		}
-		return total;
-	}
-
-	@Override
 	public void retrieveAndUpdateStatusContrat() {
 		List<Contrat> contrats = contratRepository.findAll();
 		Date today = new Date();
@@ -118,7 +114,7 @@ public class ContratServiceImpl implements IContratService {
 					contrat.setArchive(true);
 					contratRepository.save(contrat);
 				} else if (contrat.getDateFinContrat().before(fifteenDaysFromNow.getTime())) {
-					System.out.println("Contrat nearing end (15 days): " + contrat.getIdContrat());
+					System.out.println("Contrat nearing end (15 days): " + contrat);
 				}
 			}
 		}
