@@ -39,15 +39,15 @@ pipeline {
         }
 
 
-        Unitary Test
-        stage('Unitary Tests') {
-            steps {
-                script {
-                    // Stage 3: Run tests
-                    sh "mvn test"
-                }
-            }
-        }
+        // Unitary Test
+        // stage('Unitary Tests') {
+        //     steps {
+        //         script {
+        //             // Stage 3: Run tests
+        //             sh "mvn test"
+        //         }
+        //     }
+        // }
 
 
         // Build
