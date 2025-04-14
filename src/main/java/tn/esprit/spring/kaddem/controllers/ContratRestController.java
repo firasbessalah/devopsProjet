@@ -13,7 +13,8 @@ import java.util.List;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/kaddem/contrat")
-@CrossOrigin(origins = "http://localhost:4200", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
+@CrossOrigin(origins = {"http://localhost:4200"},
+		methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
 public class ContratRestController {
 	IContratService contratService;
 

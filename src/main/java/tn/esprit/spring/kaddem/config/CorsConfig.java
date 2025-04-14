@@ -14,13 +14,15 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allow requests from localhost:4200
+        // Allow requests from both localhost and IP address
+        config.addAllowedOrigin("http://localhost:4200");
+        // Add this line to allow requests from your Angular app to your backend IP
         config.addAllowedOrigin("http://localhost:4200");
 
         // Allow all HTTP methods and headers
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
-        config.setAllowCredentials(true);  // Changed to true if you need cookies/auth
+        config.setAllowCredentials(true);
 
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
