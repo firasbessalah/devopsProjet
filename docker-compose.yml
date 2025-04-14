@@ -36,7 +36,7 @@ services:
       - backend-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://192.168.40.131:8089/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
